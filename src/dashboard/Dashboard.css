@@ -1,0 +1,377 @@
+/* ===================================================================
+   GOLDTRUST IMPERIAL HOLDINGS — Dashboard Styles
+   =================================================================== */
+
+.vault-dashboard {
+  display: flex;
+  height: 100vh;
+  width: 100vw;
+  background: var(--bg);
+  overflow: hidden;
+  color: var(--fg);
+}
+
+/* ===== SIDEBAR ===== */
+.vault-sidebar {
+  width: 260px;
+  background: oklch(14% 0.01 250);
+  border-right: 0.5px solid var(--border);
+  display: flex;
+  flex-direction: column;
+  flex-shrink: 0;
+}
+
+.vault-sidebar-logo {
+  padding: 32px;
+  font-family: var(--font-display);
+  font-size: 20px;
+  letter-spacing: 0.3em;
+  color: var(--accent);
+  border-bottom: 0.5px solid var(--border);
+}
+
+.vault-sidebar-nav {
+  flex: 1;
+  padding: 24px 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.vault-sidebar-link {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 12px 16px;
+  color: var(--muted);
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  transition: all var(--duration) var(--ease);
+  cursor: pointer;
+}
+
+.vault-sidebar-link:hover {
+  color: var(--fg);
+  background: oklch(18% 0.015 250);
+}
+
+.vault-sidebar-link.active {
+  color: var(--accent);
+  background: oklch(18% 0.015 250);
+  border-right: 2px solid var(--accent);
+}
+
+.vault-sidebar-footer {
+  padding: 24px;
+  border-top: 0.5px solid var(--border);
+}
+
+.vault-user-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.vault-user-avatar {
+  width: 32px;
+  height: 32px;
+  background: var(--surface);
+  border: 0.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  color: var(--accent);
+  font-family: var(--font-mono);
+  font-size: 12px;
+}
+
+.vault-user-details {
+  flex: 1;
+}
+
+.vault-user-name {
+  display: block;
+  font-size: 13px;
+  font-weight: 500;
+}
+
+.vault-user-role {
+  display: block;
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+/* ===== MAIN CONTENT ===== */
+.vault-db-main {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.vault-db-header {
+  height: 72px;
+  padding: 0 40px;
+  border-bottom: 0.5px solid var(--border);
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: var(--bg);
+}
+
+.vault-db-title {
+  font-family: var(--font-display);
+  font-size: 24px;
+}
+
+.vault-db-body {
+  flex: 1;
+  overflow-y: auto;
+  padding: 40px;
+}
+
+/* ===== DASHBOARD WIDGETS ===== */
+.vault-db-grid {
+  display: grid;
+  grid-template-columns: repeat(12, 1fr);
+  gap: 24px;
+}
+
+.vault-card {
+  background: oklch(14% 0.01 250);
+  border: 0.5px solid var(--border);
+  padding: 32px;
+  display: flex;
+  flex-direction: column;
+}
+
+.vault-card-balance { grid-column: span 8; }
+.vault-card-assets { grid-column: span 4; }
+.vault-card-packages { grid-column: span 12; }
+.vault-card-profile { grid-column: span 4; }
+.vault-card-security { grid-column: span 8; }
+
+.vault-balance-header {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 32px;
+}
+
+.vault-balance-label {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  letter-spacing: 0.1em;
+}
+
+.vault-balance-amount {
+  font-family: var(--font-display);
+  font-size: 48px;
+  margin-top: 8px;
+}
+
+.vault-balance-change {
+  font-size: 14px;
+  color: var(--success);
+  margin-left: 12px;
+}
+
+/* ===== PACKAGE GRID ===== */
+.vault-packages-row {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.vault-package-item {
+  background: var(--bg);
+  border: 0.5px solid var(--border);
+  padding: 24px;
+  transition: all var(--duration) var(--ease);
+  cursor: pointer;
+}
+
+.vault-package-item:hover {
+  border-color: var(--accent);
+  background: oklch(16% 0.012 250);
+}
+
+.vault-package-header-row {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 16px;
+}
+
+.vault-package-tag {
+  font-family: var(--font-mono);
+  font-size: 9px;
+  color: var(--accent);
+  text-transform: uppercase;
+}
+
+.vault-package-name {
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.vault-package-yield {
+  font-family: var(--font-display);
+  font-size: 24px;
+  color: var(--success);
+}
+
+.vault-package-min {
+  font-size: 11px;
+  color: var(--muted);
+  margin-top: 16px;
+}
+
+/* ===== TABLE ===== */
+.vault-table-container {
+  width: 100%;
+  overflow-x: auto;
+  -webkit-overflow-scrolling: touch;
+}
+
+.vault-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 600px;
+}
+
+.vault-table th {
+  text-align: left;
+  padding: 16px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+  border-bottom: 0.5px solid var(--border);
+}
+
+.vault-table td {
+  padding: 16px;
+  font-size: 13px;
+  border-bottom: 0.5px solid var(--border);
+}
+
+/* ===== TIER GRID ===== */
+.vault-tier-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 24px;
+  margin-top: 24px;
+}
+
+.vault-tier-item {
+  border: 0.5px solid var(--border);
+  padding: 16px;
+}
+
+.vault-tier-value {
+  color: var(--accent);
+  font-size: 18px;
+  margin-bottom: 8px;
+}
+
+.vault-tier-label {
+  font-size: 10px;
+  color: var(--muted);
+  text-transform: uppercase;
+}
+
+.vault-mobile-only {
+  display: none;
+}
+
+/* ===== RESPONSIVE ===== */
+@media (max-width: 1200px) {
+  .vault-card-balance { grid-column: span 12; }
+  .vault-card-assets { grid-column: span 12; }
+}
+
+@media (max-width: 768px) {
+  .vault-mobile-only {
+    display: flex;
+  }
+
+  .vault-sidebar { 
+    position: fixed;
+    left: -260px;
+    top: 0;
+    bottom: 0;
+    z-index: 1000;
+    transition: left var(--duration) var(--ease);
+    box-shadow: 20px 0 50px rgba(0,0,0,0.5);
+  }
+
+  .vault-sidebar.mobile-open {
+    left: 0;
+  }
+
+  .vault-sidebar-logo {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+  }
+
+  .vault-db-header {
+    padding: 0 20px;
+  }
+
+  .vault-db-title {
+    font-size: 18px;
+  }
+
+  .vault-db-body {
+    padding: 20px;
+  }
+
+  .vault-db-grid { grid-template-columns: 1fr; }
+  .vault-packages-row { 
+    grid-template-columns: 1fr !important; 
+    gap: 16px;
+  }
+  
+  .vault-package-item {
+    padding: 20px;
+  }
+
+  .vault-card-balance, 
+  .vault-card-assets, 
+  .vault-card-packages,
+  .vault-card-profile,
+  .vault-card-security {
+    grid-column: span 12 !important;
+    padding: 20px;
+  }
+
+  .vault-balance-amount {
+    font-size: 32px;
+  }
+
+  .vault-package-name {
+    font-size: 16px;
+  }
+
+  .vault-package-yield {
+    font-size: 20px;
+  }
+
+  .vault-tier-grid {
+    grid-template-columns: repeat(2, 1fr);
+    gap: 12px;
+  }
+}
+
+@media (max-width: 480px) {
+  .vault-tier-grid {
+    grid-template-columns: 1fr;
+  }
+}

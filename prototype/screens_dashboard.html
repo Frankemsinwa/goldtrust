@@ -1,0 +1,315 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Vault — Institutional Dashboard</title>
+    <link rel="stylesheet" href="../assets/shared.css">
+    <style>
+        .chart-container {
+            height: 320px;
+            width: 100%;
+            position: relative;
+            display: flex;
+            align-items: flex-end;
+            gap: 12px;
+            padding: 40px 0;
+            border-bottom: 0.5px solid var(--border);
+            margin-bottom: 48px;
+        }
+
+        .chart-col {
+            flex: 1;
+            background: linear-gradient(180deg, var(--accent) 0%, transparent 100%);
+            opacity: 0.15;
+            transition: all 0.4s cubic-bezier(0.16, 1, 0.3, 1);
+            position: relative;
+        }
+
+        .chart-col:hover {
+            opacity: 0.6;
+            transform: scaleY(1.05);
+        }
+
+        .chart-col::after {
+            content: '';
+            position: absolute;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 2px;
+            background: var(--accent);
+            box-shadow: 0 0 15px var(--accent);
+        }
+
+        .intel-item {
+            padding: 20px 0;
+            border-bottom: 0.5px solid var(--border);
+        }
+
+        .intel-meta {
+            font-family: var(--font-mono);
+            font-size: 9px;
+            color: var(--muted);
+            text-transform: uppercase;
+            letter-spacing: 0.1em;
+            margin-bottom: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        .intel-title {
+            font-size: 14px;
+            line-height: 1.5;
+            color: var(--fg);
+            font-weight: 300;
+        }
+
+        .security-badge {
+            background: oklch(18% 0.015 250);
+            border: 0.5px solid var(--border);
+            padding: 24px;
+            margin-top: 40px;
+        }
+
+        .badge-status {
+            display: flex;
+            align-items: center;
+            gap: 8px;
+            font-family: var(--font-mono);
+            font-size: 10px;
+            color: var(--success);
+            margin-bottom: 12px;
+        }
+
+        .status-pulse {
+            width: 6px;
+            height: 6px;
+            background: var(--success);
+            border-radius: 50%;
+            box-shadow: 0 0 8px var(--success);
+            animation: pulse 2s infinite;
+        }
+
+        @keyframes pulse {
+            0% { opacity: 1; }
+            50% { opacity: 0.4; }
+            100% { opacity: 1; }
+        }
+
+        .action-row {
+            display: flex;
+            gap: 16px;
+            margin-top: 32px;
+        }
+
+        .asset-icon-wrap {
+            width: 36px;
+            height: 36px;
+            border-radius: 50%;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+            font-family: var(--font-mono);
+            font-size: 12px;
+            border: 0.5px solid var(--border);
+            background: var(--surface);
+        }
+    </style>
+</head>
+<body class="db-container">
+
+    <!-- SIDEBAR: Navigation & Identity -->
+    <aside class="db-sidebar">
+        <div style="font-family: var(--font-display); font-size: 24px; letter-spacing: -0.02em; color: var(--fg);">
+            VAULT<span style="color: var(--accent);">.</span>
+        </div>
+
+        <nav style="margin-top: 64px; flex: 1;">
+            <a href="#" class="nav-link active">Overview</a>
+            <a href="#" class="nav-link">Portfolio</a>
+            <a href="#" class="nav-link">Market Intel</a>
+            <a href="#" class="nav-link">Treasury</a>
+            <a href="#" class="nav-link">Vault Security</a>
+            <a href="#" class="nav-link">Settings</a>
+        </nav>
+
+        <div style="border-top: 0.5px solid var(--border); pt: 32px;">
+            <div style="font-family: var(--font-mono); font-size: 9px; color: var(--muted); margin-bottom: 12px;">ACCOUNT TERMINAL</div>
+            <div style="display: flex; align-items: center; gap: 12px;">
+                <div style="width: 32px; height: 32px; background: var(--surface-bright); border: 0.5px solid var(--accent);"></div>
+                <div>
+                    <div style="font-size: 12px; font-weight: 500;">Institutional v1.2</div>
+                    <div style="font-size: 10px; color: var(--muted);">Node: SG-01</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+    <!-- MAIN: Portfolio & Execution -->
+    <main class="db-main">
+        <header style="display: flex; justify-content: space-between; align-items: flex-end; margin-bottom: 64px;">
+            <div>
+                <div style="font-family: var(--font-mono); font-size: 10px; color: var(--accent); margin-bottom: 8px; letter-spacing: 0.1em;">TOTAL CUSTODY VALUE</div>
+                <h1 style="font-size: 56px; line-height: 1;">$2,481,052<span style="color: var(--muted); font-size: 32px;">.12</span></h1>
+                <div style="display: flex; gap: 24px; margin-top: 16px;">
+                    <div class="trend-up">▲ 12.4% <span style="color: var(--muted); margin-left: 8px;">Month</span></div>
+                    <div class="trend-up">▲ 4.2% <span style="color: var(--muted); margin-left: 8px;">Day</span></div>
+                </div>
+            </div>
+            <div class="action-row">
+                <a href="#" class="button-pill button-secondary">Report</a>
+                <a href="#" class="button-pill button-primary">Execute Trade</a>
+            </div>
+        </header>
+
+        <!-- Dynamic Chart Section -->
+        <div class="chart-container">
+            <div class="chart-col" style="height: 30%;"></div>
+            <div class="chart-col" style="height: 45%;"></div>
+            <div class="chart-col" style="height: 40%;"></div>
+            <div class="chart-col" style="height: 60%;"></div>
+            <div class="chart-col" style="height: 55%;"></div>
+            <div class="chart-col" style="height: 80%;"></div>
+            <div class="chart-col" style="height: 75%;"></div>
+            <div class="chart-col" style="height: 95%;"></div>
+            <div class="chart-col" style="height: 90%;"></div>
+            <div class="chart-col" style="height: 100%;"></div>
+        </div>
+
+        <!-- Asset Inventory -->
+        <section>
+            <h2 style="font-size: 24px; margin-bottom: 32px;">Allocation Portfolio</h2>
+            <table class="asset-table">
+                <thead>
+                    <tr>
+                        <th>Asset</th>
+                        <th>Price</th>
+                        <th>Balance</th>
+                        <th>Allocation</th>
+                        <th style="text-align: right;">Value (USD)</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <div class="asset-icon-wrap" style="color: #f7931a;">₿</div>
+                                <div>
+                                    <div class="asset-name">Bitcoin</div>
+                                    <div class="asset-sub">Sovereign BTC</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="font-family: var(--font-mono); font-size: 13px;">$64,281.44</td>
+                        <td style="font-family: var(--font-mono); font-size: 13px;">16.2104 BTC</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="viz-bar"><div class="viz-fill" style="width: 42%;"></div></div>
+                                <span style="font-size: 11px; color: var(--muted);">42%</span>
+                            </div>
+                        </td>
+                        <td style="text-align: right; font-family: var(--font-mono); font-size: 14px;">$1,042,041.89</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <div class="asset-icon-wrap" style="color: #627eea;">Ξ</div>
+                                <div>
+                                    <div class="asset-name">Ethereum</div>
+                                    <div class="asset-sub">Institutional ETH</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="font-family: var(--font-mono); font-size: 13px;">$3,421.12</td>
+                        <td style="font-family: var(--font-mono); font-size: 13px;">224.81 ETH</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="viz-bar"><div class="viz-fill" style="width: 31%;"></div></div>
+                                <span style="font-size: 11px; color: var(--muted);">31%</span>
+                            </div>
+                        </td>
+                        <td style="text-align: right; font-family: var(--font-mono); font-size: 14px;">$769,126.15</td>
+                    </tr>
+                    <tr>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 16px;">
+                                <div class="asset-icon-wrap" style="color: var(--accent);">V</div>
+                                <div>
+                                    <div class="asset-name">Vault Yield</div>
+                                    <div class="asset-sub">Yield Delta Fund</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td style="font-family: var(--font-mono); font-size: 13px;">$1.00</td>
+                        <td style="font-family: var(--font-mono); font-size: 13px;">669,884.08 VLY</td>
+                        <td>
+                            <div style="display: flex; align-items: center; gap: 12px;">
+                                <div class="viz-bar"><div class="viz-fill" style="width: 27%;"></div></div>
+                                <span style="font-size: 11px; color: var(--muted);">27%</span>
+                            </div>
+                        </td>
+                        <td style="text-align: right; font-family: var(--font-mono); font-size: 14px;">$669,884.08</td>
+                    </tr>
+                </tbody>
+            </table>
+        </section>
+    </main>
+
+    <!-- SIDE PANEL: Intel & Security -->
+    <aside class="db-panel">
+        <h3 style="font-size: 18px; margin-bottom: 24px;">Market Intel</h3>
+        
+        <div class="intel-item">
+            <div class="intel-meta">
+                <span>BLOOMBERG</span>
+                <span>2M AGO</span>
+            </div>
+            <div class="intel-title">Spot Bitcoin ETF inflows hit $1.2B as institutional demand surges in EU markets.</div>
+        </div>
+
+        <div class="intel-item">
+            <div class="intel-meta">
+                <span>REUTERS</span>
+                <span>45M AGO</span>
+            </div>
+            <div class="intel-title">Fed signals pause on rate hikes, sparking rally in high-beta digital assets.</div>
+        </div>
+
+        <div class="intel-item">
+            <div class="intel-meta">
+                <span>VAULT RESEARCH</span>
+                <span>1H AGO</span>
+            </div>
+            <div class="intel-title">Alpha Fund rebalancing completed: Increased exposure to Layer 2 infrastructure.</div>
+        </div>
+
+        <div class="security-badge">
+            <div class="badge-status">
+                <div class="status-pulse"></div>
+                VAULT SECURED
+            </div>
+            <div style="font-family: var(--font-display); font-size: 20px; margin-bottom: 12px;">Hardware Isolation Active</div>
+            <p style="font-size: 12px; color: var(--muted); line-height: 1.6; margin: 0;">
+                Current session is routed through your Singapore-based hardware security module. Multi-sig confirmation required for withdrawals over 5 BTC.
+            </p>
+            <div style="margin-top: 20px; font-family: var(--font-mono); font-size: 9px; color: var(--accent);">ENCRYPTED TLS 1.3 CONNECTION</div>
+        </div>
+
+        <div style="margin-top: 48px;">
+            <h3 style="font-size: 18px; margin-bottom: 24px;">Recent Activity</h3>
+            <div style="display: flex; flex-direction: column; gap: 16px;">
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 12px;">Received 2.4 BTC</div>
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--muted);">MAY 02</div>
+                </div>
+                <div style="display: flex; justify-content: space-between; align-items: center;">
+                    <div style="font-size: 12px;">Yield Distribution</div>
+                    <div style="font-family: var(--font-mono); font-size: 11px; color: var(--muted);">APR 30</div>
+                </div>
+            </div>
+        </div>
+    </aside>
+
+</body>
+</html>
