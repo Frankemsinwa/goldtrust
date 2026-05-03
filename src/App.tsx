@@ -170,7 +170,7 @@ function IconClock() {
   )
 }
 
-const ICON_MAP: Record<string, () => JSX.Element> = {
+const ICON_MAP: Record<string, () => any> = {
   lock: IconLock,
   crosshair: IconCrosshair,
   clock: IconClock,

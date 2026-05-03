@@ -8,8 +8,6 @@ import {
   History, 
   Settings, 
   LogOut,
-  ArrowUpRight,
-  ChevronRight,
   Gem,
   Menu,
   X
