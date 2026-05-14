@@ -23,7 +23,7 @@ export const config = defaultWagmiConfig({
   enableWalletConnect: true,
   enableInjected: true,
   enableEIP6963: true,
-  enableCoinbaseWallet: true,
+  enableCoinbase: true,
 })
 
 // 3. Create modal

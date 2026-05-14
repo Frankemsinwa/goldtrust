@@ -14,11 +14,10 @@ interface TradingChartProps {
   data: Candle[];
   currentPrice: number;
   priceChange: string;
-  baseAmount: number;
   timeframe: string;
 }
 
-export default function TradingChart({ data, currentPrice, priceChange, baseAmount, timeframe }: TradingChartProps) {
+export default function TradingChart({ data, currentPrice, priceChange, timeframe }: TradingChartProps) {
   const containerRef = useRef<HTMLDivElement>(null);
   const [hoveredCandle, setHoveredCandle] = useState<Candle | null>(null);
   const [mousePos, setMousePos] = useState<{ x: number; y: number } | null>(null);
@@ -101,7 +100,7 @@ export default function TradingChart({ data, currentPrice, priceChange, baseAmou
       candleWidth, candleGap,
       toY, toVolY,
       gridLines, maPoints,
-      currentPriceY, chartWidth
+      currentPriceY
     };
   }, [data, dims, layout, currentPrice]);
 
@@ -114,7 +113,7 @@ export default function TradingChart({ data, currentPrice, priceChange, baseAmou
   }
 
   const { paddingLeft, paddingTop, chartHeight, volumeHeight, volumeGap, paddingBottom } = layout;
-  const { candleWidth, candleGap, toY, toVolY, gridLines, maPoints, currentPriceY, chartWidth } = computed;
+  const { candleWidth, candleGap, toY, toVolY, gridLines, maPoints, currentPriceY } = computed;
   const svgHeight = paddingTop + chartHeight + volumeGap + volumeHeight + paddingBottom;
 
   const formatTime = (iso: string) => {

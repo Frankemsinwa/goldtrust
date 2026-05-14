@@ -7,7 +7,7 @@ import {
   useSendTransaction, 
   useWaitForTransactionReceipt 
 } from 'wagmi';
-import { formatEther, parseEther } from 'viem';
+import { parseEther } from 'viem';
 import { 
   LayoutDashboard, 
   PieChart, 
@@ -33,16 +33,10 @@ import './Dashboard.css';
 import TradingChart from './TradingChart';
 
 // Mock data kept as fallback for structural safety, but replaced by API data in useEffect
-const HISTORY_DATA_MOCK = [
-  { id: 1, type: 'Investment', asset: 'Alpha Bitcoin Core', amount: '-$5,000.00', date: '2026-05-01 14:20', status: 'Completed' },
-  { id: 2, type: 'Yield Dist.', asset: 'Physical Bullion', amount: '+$420.50', date: '2026-04-30 09:15', status: 'Completed' },
-  { id: 3, type: 'Deposit', asset: 'USD Wallet', amount: '+$50,000.00', date: '2026-04-28 11:45', status: 'Completed' },
-  { id: 4, type: 'Withdrawal', asset: 'USD Wallet', amount: '-$2,500.00', date: '2026-04-25 16:30', status: 'Completed' },
-  { id: 5, type: 'Investment', asset: 'Blue Chip Tech', amount: '-$2,500.00', date: '2026-04-20 10:00', status: 'Completed' },
-];
+
 
 export default function Dashboard() {
-  const [user, setUser] = useState<any>(JSON.parse(localStorage.getItem('user') || '{}'));
+  const [user] = useState<any>(JSON.parse(localStorage.getItem('user') || '{}'));
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
   
@@ -51,7 +45,7 @@ export default function Dashboard() {
   const [investments, setInvestments] = useState<any[]>([]);
   const [wallets, setWallets] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [] = useState(true);
 
   // Market Engine State
   const [totalProfit, setTotalProfit] = useState(0);
@@ -67,7 +61,7 @@ export default function Dashboard() {
   const [investAmount, setInvestAmount] = useState('');
   const [riskAccepted, setRiskAccepted] = useState(false);
   const [investPaymentMethod, setInvestPaymentMethod] = useState<'web3' | 'internal' | null>(null);
-  const [txHash, setTxHash] = useState('');
+  const [] = useState('');
   const [investError, setInvestError] = useState('');
 
   // Deposit State
@@ -95,7 +89,7 @@ export default function Dashboard() {
   const { 
     data: hash, 
     error: sendError, 
-    isPending: isSendPending, 
+    isPending: _isSendPending, 
     sendTransaction 
   } = useSendTransaction();
 
@@ -1320,7 +1314,6 @@ export default function Dashboard() {
                   data={chartData}
                   currentPrice={currentPrice}
                   priceChange={priceChange}
-                  baseAmount={parseFloat(chartInvestment.amount)}
                   timeframe={chartTimeframe}
                 />
               </div>

@@ -1,72 +1,13 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard, Users, TrendingUp, MessageSquare, Wallet,
-  Shield, Settings, LogOut, Menu, X, Send, Eye, Ban, CheckCircle2
+  Shield, Settings, LogOut, Menu, Send, Eye, Ban, CheckCircle2
 } from 'lucide-react';
 import './Admin.css';
 
 /* ───────── MOCK DATA ───────── */
 
-const MOCK_USERS = [
-  { id: 1, name: 'James Wellington', email: 'j.wellington@private.vault', tier: 'Elite', joined: '2026-01-15', totalInvested: '$1,248,590', status: 'active' },
-  { id: 2, name: 'Amira Al-Dahab', email: 'amira.d@sovereign.ae', tier: 'Elite', joined: '2026-02-03', totalInvested: '$2,140,000', status: 'active' },
-  { id: 3, name: 'Alexander Volkov', email: 'a.volkov@zrh-office.ch', tier: 'Premium', joined: '2026-03-10', totalInvested: '$520,000', status: 'active' },
-  { id: 4, name: 'Sofia Chen', email: 'sofia.c@hk-capital.com', tier: 'Standard', joined: '2026-04-01', totalInvested: '$85,200', status: 'active' },
-  { id: 5, name: 'Marco Bianchi', email: 'marco.b@milano.it', tier: 'Standard', joined: '2026-04-22', totalInvested: '$12,500', status: 'pending' },
-  { id: 6, name: 'Elena Petrova', email: 'elena.p@spb.ru', tier: 'Premium', joined: '2026-05-01', totalInvested: '$340,000', status: 'active' },
-  { id: 7, name: 'Kwame Mensah', email: 'k.mensah@accra.gh', tier: 'Standard', joined: '2026-05-05', totalInvested: '$50', status: 'active' },
-];
 
-const MOCK_INVESTMENTS = [
-  { id: 1, user: 'James Wellington', package: 'Alpha Bitcoin Core', amount: '$5,000', date: '2026-05-01', status: 'completed', type: 'crypto' },
-  { id: 2, user: 'Amira Al-Dahab', package: 'Physical Bullion', amount: '$50,000', date: '2026-05-02', status: 'completed', type: 'gold' },
-  { id: 3, user: 'Alexander Volkov', package: 'Ethereum Yield Plus', amount: '$20,000', date: '2026-05-03', status: 'completed', type: 'crypto' },
-  { id: 4, user: 'Sofia Chen', package: 'Micro Crypto Starter', amount: '$50', date: '2026-05-04', status: 'completed', type: 'crypto' },
-  { id: 5, user: 'Marco Bianchi', package: 'Blue Chip Tech', amount: '$2,500', date: '2026-05-05', status: 'pending', type: 'stocks' },
-  { id: 6, user: 'Amira Al-Dahab', package: 'West African Mining', amount: '$100,000', date: '2026-05-06', status: 'completed', type: 'gold' },
-  { id: 7, user: 'Elena Petrova', package: 'Emerging Markets', amount: '$15,000', date: '2026-05-07', status: 'completed', type: 'stocks' },
-  { id: 8, user: 'Kwame Mensah', package: 'Micro Crypto Starter', amount: '$50', date: '2026-05-08', status: 'pending', type: 'crypto' },
-  { id: 9, user: 'James Wellington', package: 'West African Mining', amount: '$10,000', date: '2026-05-09', status: 'completed', type: 'gold' },
-];
-
-const MOCK_WITHDRAWALS = [
-  { id: 1, user: 'James Wellington', amount: '$2,500', method: 'SWIFT Transfer', date: '2026-05-08', status: 'completed' },
-  { id: 2, user: 'Amira Al-Dahab', amount: '$15,000', method: 'Wire Transfer', date: '2026-05-09', status: 'pending' },
-  { id: 3, user: 'Alexander Volkov', amount: '$5,000', method: 'Crypto (BTC)', date: '2026-05-09', status: 'pending' },
-];
-
-const MOCK_CHATS = [
-  {
-    id: 1, user: 'James Wellington', initials: 'JW', unread: true,
-    messages: [
-      { text: 'I need help with my withdrawal request.', sender: 'user', time: '21:10' },
-      { text: 'The SWIFT transfer has been pending for 2 days.', sender: 'user', time: '21:11' },
-    ]
-  },
-  {
-    id: 2, user: 'Sofia Chen', initials: 'SC', unread: true,
-    messages: [
-      { text: 'Can I upgrade my account tier?', sender: 'user', time: '20:45' },
-    ]
-  },
-  {
-    id: 3, user: 'Kwame Mensah', initials: 'KM', unread: false,
-    messages: [
-      { text: 'How does the Micro Crypto Starter work?', sender: 'user', time: '19:30' },
-      { text: 'The Micro Crypto Starter allocates your $50 into a diversified crypto basket managed by our algorithmic trading engine.', sender: 'admin', time: '19:35' },
-      { text: 'Thank you! That makes sense.', sender: 'user', time: '19:37' },
-    ]
-  },
-];
-
-const ACTIVITY_LOG = [
-  { text: 'James Wellington deposited $50,000', time: '2 min ago', type: 'deposit' },
-  { text: 'Amira Al-Dahab invested in Physical Bullion', time: '15 min ago', type: 'invest' },
-  { text: 'New user Marco Bianchi registered', time: '1 hr ago', type: 'register' },
-  { text: 'Withdrawal request from Alexander Volkov', time: '2 hr ago', type: 'withdraw' },
-  { text: 'Kwame Mensah invested in Micro Crypto Starter', time: '3 hr ago', type: 'invest' },
-  { text: 'Elena Petrova completed KYC verification', time: '5 hr ago', type: 'register' },
-];
 
 const NAV_ITEMS = [
   { id: 'overview', label: 'Overview', icon: LayoutDashboard },
@@ -93,10 +34,10 @@ export default function Admin() {
 
   // Real Data State
   const [stats, setStats] = useState<any>(null);
-  const [users, setUsers] = useState<any[]>([]);
-  const [investments, setInvestments] = useState<any[]>([]);
-  const [transactions, setTransactions] = useState<any[]>([]);
-  const [loading, setLoading] = useState(true);
+  const [users] = useState<any[]>([]);
+  const [investments] = useState<any[]>([]);
+  const [transactions] = useState<any[]>([]);
+  const [] = useState(true);
 
   const fetchChatHistory = useCallback(async (userId: number) => {
     try {
@@ -248,7 +189,7 @@ export default function Admin() {
               <div className="admin-panel">
                 <div className="admin-panel-header"><span className="admin-panel-title">Top Investors</span></div>
                 <div className="admin-panel-body">
-                  {users.sort((a, b) => 1).slice(0, 5).map(u => (
+                  {users.slice(0, 5).map(u => (
                     <div key={u.id} style={{ padding: '12px 24px', borderBottom: '0.5px solid oklch(20% 0.01 250)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div>
                         <div style={{ fontSize: 13, fontWeight: 500 }}>{u.full_name}</div>
