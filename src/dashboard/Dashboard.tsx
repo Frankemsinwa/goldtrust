@@ -1,4 +1,13 @@
-import { useState } from 'react';
+import { useState, useEffect, useCallback, useRef } from 'react';
+import api from '../api';
+import { useWeb3Modal } from '@web3modal/wagmi/react';
+import { 
+  useAccount, 
+  useBalance, 
+  useSendTransaction, 
+  useWaitForTransactionReceipt 
+} from 'wagmi';
+import { formatEther, parseEther } from 'viem';
 import { 
   LayoutDashboard, 
   PieChart, 
@@ -10,33 +19,21 @@ import {
   LogOut,
   Gem,
   Menu,
-  X
+  X,
+  CheckCircle2,
+  AlertCircle,
+  ShieldCheck,
+  ArrowRight,
+  Banknote,
+  Send,
+  CreditCard,
+  Copy
 } from 'lucide-react';
 import './Dashboard.css';
+import TradingChart from './TradingChart';
 
-const PACKAGES = [
-  { id: 1, type: 'crypto', name: 'Alpha Bitcoin Core', yield: '+14.2%', min: '$5,000' },
-  { id: 2, type: 'stocks', name: 'Blue Chip Tech', yield: '+8.4%', min: '$2,500' },
-  { id: 3, type: 'gold', name: 'West African Mining', yield: '+12.1%', min: '$10,000' },
-  { id: 4, type: 'crypto', name: 'Ethereum Yield Plus', yield: '+11.8%', min: '$3,000' },
-  { id: 5, type: 'stocks', name: 'Emerging Markets', yield: '+15.6%', min: '$1,000' },
-  { id: 6, type: 'gold', name: 'Physical Bullion', yield: '+4.2%', min: '$50,000' },
-];
-
-const PORTFOLIO_ASSETS = [
-  { id: 1, name: 'Bitcoin', symbol: 'BTC', amount: '12.4502', value: '$845,200', change: '+2.4%', color: 'var(--accent)' },
-  { id: 2, name: 'Ethereum', symbol: 'ETH', amount: '150.25', value: '$342,100', change: '-1.2%', color: '#627EEA' },
-  { id: 3, name: 'Physical Gold', symbol: 'AU', amount: '50.00 oz', value: '$102,400', change: '+0.5%', color: '#f3ba2f' },
-  { id: 4, name: 'S&P 500 Index', symbol: 'SPX', amount: '240 Units', value: '$118,500', change: '+1.8%', color: '#ffffff' },
-];
-
-const WALLETS_DATA = [
-  { id: 1, type: 'Main Vault', currency: 'USD', balance: '$45,200.00', address: 'GoldTrust Account #8801' },
-  { id: 2, type: 'Crypto Wallet', currency: 'BTC', balance: '0.4502 BTC', address: 'bc1qxy2kg...4v6r' },
-  { id: 3, type: 'Crypto Wallet', currency: 'ETH', balance: '4.251 ETH', address: '0x71C7...5C9D' },
-];
-
-const HISTORY_DATA = [
+// Mock data kept as fallback for structural safety, but replaced by API data in useEffect
+const HISTORY_DATA_MOCK = [
   { id: 1, type: 'Investment', asset: 'Alpha Bitcoin Core', amount: '-$5,000.00', date: '2026-05-01 14:20', status: 'Completed' },
   { id: 2, type: 'Yield Dist.', asset: 'Physical Bullion', amount: '+$420.50', date: '2026-04-30 09:15', status: 'Completed' },
   { id: 3, type: 'Deposit', asset: 'USD Wallet', amount: '+$50,000.00', date: '2026-04-28 11:45', status: 'Completed' },
@@ -45,12 +42,375 @@ const HISTORY_DATA = [
 ];
 
 export default function Dashboard() {
+  const [user, setUser] = useState<any>(JSON.parse(localStorage.getItem('user') || '{}'));
   const [activeTab, setActiveTab] = useState('overview');
   const [isSidebarOpen, setIsSidebarOpen] = useState(false);
+  
+  // Real Data State
+  const [packages, setPackages] = useState<any[]>([]);
+  const [investments, setInvestments] = useState<any[]>([]);
+  const [wallets, setWallets] = useState<any[]>([]);
+  const [history, setHistory] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Market Engine State
+  const [totalProfit, setTotalProfit] = useState(0);
+  const [chartModalOpen, setChartModalOpen] = useState(false);
+  const [chartInvestment, setChartInvestment] = useState<any>(null);
+  const [chartTimeframe, setChartTimeframe] = useState<'1H'|'1D'|'1W'|'1M'>('1H');
+  const [chartData, setChartData] = useState<any[]>([]);
+  const [currentPrice, setCurrentPrice] = useState(0);
+  const [priceChange, setPriceChange] = useState('0.00');
+
+  const [investStep, setInvestStep] = useState<'idle' | 'input' | 'confirming' | 'processing' | 'success'>('idle');
+  const [selectedPkg, setSelectedPkg] = useState<any>(null);
+  const [investAmount, setInvestAmount] = useState('');
+  const [riskAccepted, setRiskAccepted] = useState(false);
+  const [investPaymentMethod, setInvestPaymentMethod] = useState<'web3' | 'internal' | null>(null);
+  const [txHash, setTxHash] = useState('');
+  const [investError, setInvestError] = useState('');
+
+  // Deposit State
+  const [depositStep, setDepositStep] = useState<'idle' | 'method' | 'amount' | 'instructions' | 'proof' | 'processing' | 'success'>('idle');
+  const [depositMethod, setDepositMethod] = useState<'bank' | 'wise' | 'crypto' | 'card' | null>(null);
+  const [depositAmount, setDepositAmount] = useState('');
+  const [depositProof, setDepositProof] = useState('');
+  const [isCopied, setIsCopied] = useState(false);
+
+  // Chat State
+  const [chatOpen, setChatOpen] = useState(false);
+  const [chatMessages, setChatMessages] = useState<any[]>([
+    { id: 1, text: "Welcome back to your Private Capital Portal. How may we assist your holdings today?", sender: 'bot', time: '09:00' }
+  ]);
+  const [chatInput, setChatInput] = useState('');
+  const chatEndRef = useRef<HTMLDivElement>(null);
+  
+  // Web3 Hooks
+  const { open } = useWeb3Modal();
+  const { address, isConnected } = useAccount();
+  const { data: balanceData } = useBalance({ address });
+  const lastConnectedAddress = useRef<string | null>(null);
+
+  // Wagmi Transaction Hooks
+  const { 
+    data: hash, 
+    error: sendError, 
+    isPending: isSendPending, 
+    sendTransaction 
+  } = useSendTransaction();
+
+  const { 
+    isLoading: isConfirming, 
+    isSuccess: isConfirmed 
+  } = useWaitForTransactionReceipt({ 
+    hash, 
+  });
+
+  const fetchData = useCallback(async () => {
+    try {
+      const [pkgsRes, invRes, wallRes, histRes] = await Promise.all([
+        api.get('/packages'),
+        api.get('/investments'),
+        api.get('/wallets'),
+        api.get('/transactions')
+      ]);
+      setPackages(pkgsRes.data);
+      setInvestments(invRes.data);
+      setWallets(wallRes.data);
+      setHistory(histRes.data);
+    } catch (err) {
+      console.error('Failed to fetch dashboard data', err);
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => {
+    const fetchProfit = async () => {
+      try {
+        const res = await api.get('/portfolio/performance');
+        setTotalProfit(res.data.profit);
+      } catch (err) {}
+    };
+    fetchProfit();
+    const interval = setInterval(fetchProfit, 5000);
+    return () => clearInterval(interval);
+  }, []);
+
+  const fetchMarketData = useCallback(async () => {
+    if (!chartInvestment) return;
+    try {
+      const res = await api.get(`/investments/${chartInvestment.id}/market-data/${chartTimeframe}`);
+      setChartData(res.data.chartData);
+      setCurrentPrice(res.data.currentPrice);
+      setPriceChange(res.data.priceChange);
+    } catch (err) {}
+  }, [chartInvestment, chartTimeframe]);
+
+  useEffect(() => {
+    fetchMarketData();
+    let interval: any;
+    if (chartModalOpen) {
+      interval = setInterval(fetchMarketData, 5000);
+    }
+    return () => clearInterval(interval);
+  }, [fetchMarketData, chartModalOpen]);
+
+  const openChart = (inv: any) => {
+    setChartInvestment(inv);
+    setChartModalOpen(true);
+    setChartTimeframe('1H');
+  };
+
+  useEffect(() => {
+    fetchData();
+    
+    // Background polling for live yield ticks
+    const fetchLiveYields = async () => {
+      try {
+        const [pkgsRes, invRes] = await Promise.all([
+          api.get('/packages'),
+          api.get('/investments')
+        ]);
+        setPackages(pkgsRes.data);
+        setInvestments(invRes.data);
+      } catch (err) {}
+    };
+    const liveInterval = setInterval(fetchLiveYields, 5000);
+    
+    // Restore Pending Deposit from LocalStorage
+    const savedMethod = localStorage.getItem('pendingDepositMethod');
+    const savedAmount = localStorage.getItem('pendingDepositAmount');
+    const savedStep = localStorage.getItem('pendingDepositStep');
+    
+    if (savedMethod && savedAmount && savedStep && savedStep !== 'idle' && savedStep !== 'success') {
+      setDepositMethod(savedMethod as any);
+      setDepositAmount(savedAmount);
+      // We don't auto-open the modal, just show the FAB
+    }
+
+    return () => clearInterval(liveInterval);
+  }, [fetchData]);
+
+  // Sync Deposit State to LocalStorage
+  useEffect(() => {
+    if (depositStep !== 'idle' && depositStep !== 'success') {
+      localStorage.setItem('pendingDepositMethod', depositMethod || '');
+      localStorage.setItem('pendingDepositAmount', depositAmount);
+      localStorage.setItem('pendingDepositStep', depositStep);
+    } else if (depositStep === 'success' || depositStep === 'idle') {
+      localStorage.removeItem('pendingDepositMethod');
+      localStorage.removeItem('pendingDepositAmount');
+      localStorage.removeItem('pendingDepositStep');
+    }
+  }, [depositStep, depositMethod, depositAmount]);
+
+  // Auto-sync linked wallet with backend when address changes
+  useEffect(() => {
+    if (isConnected && address && address !== lastConnectedAddress.current) {
+      const syncWallet = async () => {
+        try {
+          await api.post('/wallet/link', { walletAddress: address });
+          fetchData();
+          lastConnectedAddress.current = address;
+        } catch (err) {
+          console.error('Auto-sync wallet failed', err);
+        }
+      };
+      syncWallet();
+    }
+  }, [isConnected, address, fetchData]);
+
+  const fetchChatMessages = useCallback(async () => {
+    try {
+      const res = await api.get('/chat');
+      if (res.data && Array.isArray(res.data)) {
+        const formatted = res.data.map((m: any) => ({
+          id: m.id,
+          text: m.message,
+          sender: m.sender_type === 'user' ? 'user' : 'bot',
+          time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }));
+        if (formatted.length > 0) {
+          setChatMessages(formatted);
+        }
+      }
+    } catch (err) {
+      console.error('Dashboard chat fetch failed', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchChatMessages();
+    const interval = setInterval(fetchChatMessages, 5000);
+    return () => clearInterval(interval);
+  }, [fetchChatMessages]);
+
+  useEffect(() => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' });
+  }, [chatMessages]);
+
+  const handleSendChatMessage = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!chatInput.trim()) return;
+    try {
+      await api.post('/chat', { message: chatInput });
+      setChatInput('');
+      fetchChatMessages();
+    } catch (err) {
+      console.error('Dashboard message send failed', err);
+    }
+  };
 
   const handleNavClick = (tab: string) => {
     setActiveTab(tab);
     setIsSidebarOpen(false);
+  };
+
+  // Effect to handle post-transaction recording
+  useEffect(() => {
+    if (isConfirmed && hash && selectedPkg) {
+      const recordInvestment = async () => {
+        setInvestStep('processing');
+        try {
+          await api.post('/wallet/verify-tx', {
+            txHash: hash,
+            packageId: selectedPkg.id,
+            amount: investAmount
+          });
+          setInvestStep('success');
+          fetchData();
+        } catch (err: any) {
+          setInvestError(err.response?.data?.error || 'Verification failed, but transaction was successful on-chain. Please contact support.');
+          setInvestStep('input');
+        }
+      };
+      recordInvestment();
+    }
+  }, [isConfirmed, hash, selectedPkg, investAmount, fetchData]);
+
+  useEffect(() => {
+    if (sendError) {
+      setInvestError(sendError.message || 'Transaction rejected or failed');
+      setInvestStep('input');
+    }
+  }, [sendError]);
+
+  const startInvest = (pkg: any) => {
+    setSelectedPkg(pkg);
+    setInvestStep('input');
+    setInvestAmount(pkg.min_investment.toString());
+    setInvestError('');
+    setInvestPaymentMethod(null);
+  };
+
+  const processInvest = async () => {
+    if (!investAmount || !riskAccepted) return;
+    
+    // If it's crypto and we haven't picked a method yet, go to selection
+    if (selectedPkg.type === 'crypto' && !investPaymentMethod) {
+      setInvestStep('method' as any); // Temporary cast for the new step
+      return;
+    }
+
+    // Execution based on method
+    if (selectedPkg.type === 'crypto' && investPaymentMethod === 'web3') {
+      if (!isConnected) {
+        open();
+        return;
+      }
+      
+      try {
+        setInvestStep('confirming');
+        const ethAmount = (parseFloat(investAmount) / 3500).toFixed(6);
+        
+        sendTransaction({
+          to: '0xad5FBC2145c97F24351c433eBE0950Ff9431b765', 
+          value: parseEther(ethAmount),
+        });
+      } catch (err: any) {
+        setInvestError(err.message || 'Failed to initiate transaction');
+        setInvestStep('input');
+      }
+    } else {
+      // Internal balance flow (default for stocks/gold or if selected for crypto)
+      executeInternalInvest();
+    }
+  };
+
+  const executeInternalInvest = async () => {
+    setInvestStep('processing');
+    setInvestError('');
+    try {
+      await api.post('/investments', {
+        packageId: selectedPkg.id,
+        amount: investAmount
+      });
+      setInvestStep('success');
+      fetchData();
+    } catch (err: any) {
+      setInvestError(err.response?.data?.error || 'Investment failed');
+      setInvestStep('input');
+    }
+  };
+
+  const verifyWeb3Tx = async () => {
+    // Legacy flow removed in favor of automatic detection
+  };
+
+  const linkExternalWallet = async () => {
+    open();
+  };
+
+  const closeInvest = () => {
+    setInvestStep('idle');
+    setSelectedPkg(null);
+    setInvestAmount('');
+    setRiskAccepted(false);
+  };
+
+  const closeDeposit = () => {
+    setDepositStep('idle');
+    // We don't clear method/amount here if they want to use the FAB
+    // But if they manually close, we might want to keep the FAB available
+    // unless they specifically 'Cancel' it. For now, closing the modal
+    // keeps the FAB alive if it was mid-flow.
+  };
+
+  const cancelDeposit = () => {
+    setDepositStep('idle');
+    setDepositMethod(null);
+    setDepositAmount('');
+    setDepositProof('');
+    localStorage.removeItem('pendingDepositMethod');
+    localStorage.removeItem('pendingDepositAmount');
+    localStorage.removeItem('pendingDepositStep');
+  };
+
+  const copyToClipboard = (text: string) => {
+    navigator.clipboard.writeText(text);
+    setIsCopied(true);
+    setTimeout(() => setIsCopied(false), 2000);
+  };
+
+  const handleDepositSubmit = async () => {
+    setDepositStep('processing');
+    try {
+      await api.post('/transactions', {
+        type: 'DEPOSIT',
+        amount: depositAmount,
+        status: 'pending',
+        metadata: {
+          method: depositMethod,
+          proof: depositProof
+        }
+      });
+      setDepositStep('success');
+      fetchData();
+    } catch (err) {
+      console.error('Deposit request failed', err);
+      setDepositStep('amount');
+    }
   };
 
   return (
@@ -90,12 +450,15 @@ export default function Dashboard() {
 
         <div className="vault-sidebar-footer">
           <div className="vault-user-info">
-            <div className="vault-user-avatar">JW</div>
+            <div className="vault-user-avatar">{user.fullName?.split(' ').map((n:any) => n[0]).join('')}</div>
             <div className="vault-user-details">
-              <span className="vault-user-name">James Wellington</span>
-              <span className="vault-user-role">Elite Member</span>
+              <span className="vault-user-name">{user.fullName}</span>
+              <span className="vault-user-role">{user.tier} Member</span>
             </div>
-            <LogOut size={16} className="vault-muted" style={{ cursor: 'pointer' }} />
+            <LogOut size={16} className="vault-muted" style={{ cursor: 'pointer' }} onClick={() => {
+              localStorage.clear();
+              window.location.href = '/';
+            }} />
           </div>
         </div>
       </aside>
@@ -119,8 +482,21 @@ export default function Dashboard() {
               {activeTab === 'settings' && 'Imperial Settings'}
             </h2>
           </div>
-          <div className="vault-db-actions">
-            <button className="vault-btn vault-btn-primary vault-btn-nav" style={{ padding: '8px 20px' }}>Deposit Funds</button>
+          <div className="vault-db-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
+            <button 
+              className="vault-btn vault-btn-secondary" 
+              style={{ padding: '8px 20px', fontSize: '11px' }}
+              onClick={() => open()}
+            >
+              {isConnected ? `${address?.slice(0, 6)}...${address?.slice(-4)}` : 'Connect Wallet'}
+            </button>
+            <button 
+              className="vault-btn vault-btn-primary vault-btn-nav" 
+              style={{ padding: '8px 20px' }}
+              onClick={() => setDepositStep('method')}
+            >
+              Deposit Funds
+            </button>
           </div>
         </header>
 
@@ -133,7 +509,7 @@ export default function Dashboard() {
                   <div>
                     <span className="vault-balance-label">Total Portfolio Value</span>
                     <div className="vault-balance-amount">
-                      $1,248,590.00 <span className="vault-balance-change">+2.4%</span>
+                      ${investments.reduce((acc, inv) => acc + parseFloat(inv.amount), 0).toLocaleString()} <span className="vault-balance-change">+2.4%</span>
                     </div>
                   </div>
                   <TrendingUp size={24} color="var(--success)" />
@@ -141,11 +517,15 @@ export default function Dashboard() {
                 <div style={{ display: 'flex', gap: '32px', marginTop: 'auto' }}>
                   <div>
                     <span className="vault-balance-label">Total Profit</span>
-                    <div style={{ fontSize: '18px', marginTop: '4px' }}>+$142,300</div>
+                    <div style={{ fontSize: '18px', marginTop: '4px', color: totalProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                      {totalProfit >= 0 ? '+' : '-'}${Math.abs(totalProfit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
                   </div>
                   <div>
-                    <span className="vault-balance-label">Invested Funds</span>
-                    <div style={{ fontSize: '18px', marginTop: '4px' }}>$1,106,290</div>
+                    <span className="vault-balance-label">Internal Balance</span>
+                    <div style={{ fontSize: '18px', marginTop: '4px' }}>
+                      ${parseFloat(wallets.find(w => w.type === 'USD')?.balance || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
                   </div>
                 </div>
               </div>
@@ -183,7 +563,7 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="vault-packages-row">
-                  {PACKAGES.slice(0, 3).map(pkg => (
+                  {packages.slice(0, 3).map(pkg => (
                     <div key={pkg.id} className="vault-package-item">
                       <div className="vault-package-header-row">
                         <span className="vault-package-tag">{pkg.type}</span>
@@ -193,7 +573,14 @@ export default function Dashboard() {
                       </div>
                       <h4 className="vault-package-name">{pkg.name}</h4>
                       <div className="vault-package-yield">{pkg.yield} <span style={{ fontSize: '10px', color: 'var(--muted)' }}>ROI</span></div>
-                      <div className="vault-package-min">Min Investment: {pkg.min}</div>
+                      <div className="vault-package-min">Min Investment: ${pkg.min_investment}</div>
+                      <button 
+                        className="vault-btn vault-btn-primary" 
+                        style={{ width: '100%', marginTop: '16px', padding: '10px', fontSize: '10px' }}
+                        onClick={() => startInvest(pkg)}
+                      >
+                        Invest Now
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -205,7 +592,7 @@ export default function Dashboard() {
             <div className="vault-db-grid">
                <div className="vault-card vault-card-packages">
                 <div className="vault-packages-row">
-                  {PACKAGES.map(pkg => (
+                  {packages.map(pkg => (
                     <div key={pkg.id} className="vault-package-item">
                       <div className="vault-package-header-row">
                         <span className="vault-package-tag">{pkg.type}</span>
@@ -215,8 +602,14 @@ export default function Dashboard() {
                       </div>
                       <h4 className="vault-package-name">{pkg.name}</h4>
                       <div className="vault-package-yield">{pkg.yield}</div>
-                      <div className="vault-package-min">Min Investment: {pkg.min}</div>
-                      <button className="vault-btn vault-btn-primary" style={{ width: '100%', marginTop: '20px', padding: '10px' }}>Invest Now</button>
+                      <div className="vault-package-min">Min Investment: ${pkg.min_investment}</div>
+                      <button 
+                        className="vault-btn vault-btn-primary" 
+                        style={{ width: '100%', marginTop: '20px', padding: '10px' }}
+                        onClick={() => startInvest(pkg)}
+                      >
+                        Invest Now
+                      </button>
                     </div>
                   ))}
                 </div>
@@ -239,27 +632,30 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {PORTFOLIO_ASSETS.map(asset => (
-                        <tr key={asset.id}>
+                      {investments.map(inv => (
+                        <tr key={inv.id}>
                           <td>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div style={{ width: 8, height: 8, background: asset.color }} />
+                              <div style={{ width: 8, height: 8, background: inv.package_type === 'crypto' ? 'var(--accent)' : '#f3ba2f' }} />
                               <div>
-                                <div style={{ fontWeight: 500 }}>{asset.name}</div>
-                                <div style={{ fontSize: '10px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{asset.symbol}</div>
+                                <div style={{ fontWeight: 500 }}>{inv.package_name}</div>
+                                <div style={{ fontSize: '10px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{inv.package_type.toUpperCase()}</div>
                               </div>
                             </div>
                           </td>
-                          <td style={{ fontFamily: 'var(--font-mono)' }}>{asset.amount}</td>
-                          <td style={{ fontFamily: 'var(--font-mono)' }}>{asset.value}</td>
-                          <td style={{ color: asset.change.startsWith('+') ? 'var(--success)' : 'var(--danger)', fontFamily: 'var(--font-mono)' }}>
-                            {asset.change}
+                          <td style={{ fontFamily: 'var(--font-mono)' }}>Active</td>
+                          <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(inv.amount).toLocaleString()}</td>
+                          <td style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
+                            {inv.yield}
                           </td>
                           <td style={{ textAlign: 'right' }}>
-                            <button className="vault-auth-link" style={{ fontSize: '11px' }}>Trade</button>
+                            <button className="vault-auth-link" style={{ fontSize: '11px' }} onClick={() => openChart(inv)}>Manage</button>
                           </td>
                         </tr>
                       ))}
+                      {investments.length === 0 && (
+                        <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--muted)', padding: '40px' }}>No active investments found.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -269,19 +665,60 @@ export default function Dashboard() {
 
           {activeTab === 'wallets' && (
             <div className="vault-db-grid">
-              {WALLETS_DATA.map(wallet => (
+              {wallets.map(wallet => (
                 <div key={wallet.id} className="vault-card" style={{ gridColumn: 'span 4' }}>
-                  <div className="vault-balance-label" style={{ marginBottom: '16px' }}>{wallet.type}</div>
-                  <div style={{ fontSize: '24px', fontFamily: 'var(--font-display)', marginBottom: '8px' }}>{wallet.balance}</div>
-                  <div style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: 'var(--font-mono)', marginBottom: '24px' }}>
-                    {wallet.address}
+                  <div className="vault-balance-label" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
+                    {wallet.type === 'USD' ? (
+                      <>
+                        <ShieldCheck size={12} color="var(--accent)" />
+                        Imperial Balance (Escrow)
+                      </>
+                    ) : (
+                      <>
+                        {wallet.type} Wallet
+                        {wallet.type === 'EXTERNAL' && wallet.address?.toLowerCase() === address?.toLowerCase() && (
+                          <span style={{ color: 'var(--success)', fontSize: '9px' }}>(Connected)</span>
+                        )}
+                      </>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '24px', fontFamily: 'var(--font-display)', marginBottom: '8px' }}>
+                    {wallet.type === 'USD' && (
+                      <>${parseFloat(wallet.balance || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}</>
+                    )}
+                    {wallet.type === 'EXTERNAL' && (() => {
+                      const isConnected = wallet.address?.toLowerCase() === address?.toLowerCase();
+                      if (isConnected && balanceData) {
+                        const parsed = parseFloat(balanceData.formatted);
+                        const display = isNaN(parsed) ? '0.0000' : parsed.toFixed(4);
+                        return <>{display} {balanceData.symbol || 'ETH'}</>;
+                      }
+                      return <>{wallet.balance || '0.0000'} ETH</>;
+                    })()}
+                    {wallet.type !== 'USD' && wallet.type !== 'EXTERNAL' && (
+                      <>{wallet.balance} {wallet.type}</>
+                    )}
+                  </div>
+                  <div style={{ fontSize: '11px', color: 'var(--muted)', fontFamily: 'var(--font-mono)', marginBottom: '24px', overflow: 'hidden', textOverflow: 'ellipsis' }}>
+                    {wallet.type === 'USD' ? 'Institutional Escrow Account' : (wallet.address || 'External Address')}
                   </div>
                   <div style={{ display: 'flex', gap: '12px', marginTop: 'auto' }}>
-                    <button className="vault-btn vault-btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '11px' }}>Deposit</button>
-                    <button className="vault-btn vault-btn-secondary" style={{ flex: 1, padding: '8px', fontSize: '11px' }}>Send</button>
+                    <button 
+                      className="vault-btn vault-btn-secondary" 
+                      style={{ width: '100%', padding: '8px', fontSize: '11px' }}
+                      onClick={() => wallet.type === 'USD' ? setDepositStep('method') : open()}
+                    >
+                      Deposit
+                    </button>
                   </div>
                 </div>
               ))}
+              <div className="vault-card" style={{ gridColumn: 'span 4', border: '1px dashed var(--border)', display: 'flex', alignItems: 'center', justifyContent: 'center', cursor: 'pointer' }} onClick={() => open()}>
+                <div style={{ textAlign: 'center' }}>
+                  <Wallet size={24} color="var(--muted)" style={{ marginBottom: '8px' }} />
+                  <div style={{ fontSize: '12px', color: 'var(--muted)' }}>Link New Wallet</div>
+                </div>
+              </div>
             </div>
           )}
 
@@ -300,21 +737,29 @@ export default function Dashboard() {
                       </tr>
                     </thead>
                     <tbody>
-                      {HISTORY_DATA.map(item => (
+                      {history.map(item => (
                         <tr key={item.id}>
                           <td style={{ color: 'var(--accent)', textTransform: 'uppercase', fontSize: '10px', letterSpacing: '0.05em' }}>{item.type}</td>
-                          <td>{item.asset}</td>
-                          <td style={{ fontFamily: 'var(--font-mono)', color: item.amount.startsWith('+') ? 'var(--success)' : 'inherit' }}>
-                            {item.amount}
+                          <td>{item.metadata?.packageName || item.type}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)', color: item.type === 'DEPOSIT' ? 'var(--success)' : 'inherit' }}>
+                            {item.type === 'DEPOSIT' ? '+' : '-'}${parseFloat(item.amount).toLocaleString()}
                           </td>
-                          <td style={{ fontSize: '11px', color: 'var(--muted)' }}>{item.date}</td>
+                          <td style={{ fontSize: '11px', color: 'var(--muted)' }}>{new Date(item.created_at).toLocaleString()}</td>
                           <td>
-                            <span style={{ fontSize: '10px', background: 'rgba(0,255,0,0.1)', color: 'var(--success)', padding: '2px 8px' }}>
+                            <span style={{ 
+                              fontSize: '10px', 
+                              background: item.status === 'completed' ? 'rgba(0,255,0,0.1)' : 'rgba(255,165,0,0.1)', 
+                              color: item.status === 'completed' ? 'var(--success)' : 'orange', 
+                              padding: '2px 8px' 
+                            }}>
                               {item.status}
                             </span>
                           </td>
                         </tr>
                       ))}
+                      {history.length === 0 && (
+                        <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--muted)', padding: '40px' }}>No transaction history found.</td></tr>
+                      )}
                     </tbody>
                   </table>
                 </div>
@@ -330,11 +775,11 @@ export default function Dashboard() {
                   <div className="vault-user-avatar" style={{ width: '64px', height: '64px', fontSize: '24px', marginBottom: '16px' }}>JW</div>
                   <div style={{ marginBottom: '16px' }}>
                     <label className="vault-balance-label" style={{ display: 'block', marginBottom: '4px' }}>Display Name</label>
-                    <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>James Wellington</div>
+                    <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '8px' }}>{user.fullName}</div>
                   </div>
                   <div style={{ marginBottom: '16px' }}>
                     <label className="vault-balance-label" style={{ display: 'block', marginBottom: '4px' }}>Email Address</label>
-                    <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '8px', color: 'var(--muted)' }}>j.wellington@private.vault</div>
+                    <div style={{ borderBottom: '1px solid var(--border)', paddingBottom: '8px', color: 'var(--muted)' }}>{user.email}</div>
                   </div>
                   <button className="vault-btn vault-btn-secondary" style={{ width: '100%', marginTop: '12px' }}>Update Profile</button>
                 </div>
@@ -370,7 +815,7 @@ export default function Dashboard() {
               </div>
 
               <div className="vault-card" style={{ gridColumn: 'span 12', marginTop: '24px' }}>
-                <span className="vault-balance-label">Tier Benefits (Elite Member)</span>
+                <span className="vault-balance-label">Tier Benefits ({user.tier} Member)</span>
                 <div className="vault-tier-grid">
                   <div className="vault-tier-item">
                     <div className="vault-tier-value">0.1%</div>
@@ -393,6 +838,558 @@ export default function Dashboard() {
             </div>
           )}
         </div>
+
+        {/* ═══════════ INVESTMENT FLOW MODAL ═══════════ */}
+        {investStep !== 'idle' && (
+          <div className="vault-modal-overlay" data-open="true" onClick={(e) => e.target === e.currentTarget && closeInvest()}>
+            <div className="vault-auth-card" style={{ maxWidth: '500px' }}>
+              <button className="vault-modal-close" onClick={closeInvest}>&times;</button>
+              
+              {investStep === 'input' && (
+                <div className="reveal revealed">
+                  <div className="vault-package-tag" style={{ marginBottom: '8px' }}>Institutional Investment</div>
+                  <h3 className="vault-db-title" style={{ marginBottom: '8px' }}>{selectedPkg?.name}</h3>
+                  <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '32px' }}>
+                    Configure your capital allocation for this {selectedPkg?.type} strategy.
+                  </div>
+
+                  {investError && (
+                    <div style={{ padding: '12px', background: 'rgba(248, 113, 113, 0.1)', border: '1px solid #f87171', color: '#f87171', fontSize: '0.85rem', marginBottom: '20px', borderRadius: '4px' }}>
+                      {investError}
+                    </div>
+                  )}
+
+                  <div className="vault-input-group">
+                    <label className="vault-balance-label">Investment Amount (USD)</label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, top: '12px', color: 'var(--accent)' }}>$</span>
+                      <input 
+                        type="number" 
+                        className="vault-input" 
+                        style={{ paddingLeft: '20px' }}
+                        value={investAmount}
+                        onChange={(e) => setInvestAmount(e.target.value)}
+                        placeholder="0.00"
+                      />
+                    </div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '8px' }}>
+                      Minimum requirement: ${selectedPkg?.min_investment}
+                    </div>
+                  </div>
+
+                  <div className="vault-card" style={{ background: 'var(--surface)', padding: '20px', borderRadius: '4px', margin: '24px 0', border: '0.5px solid var(--border)' }}>
+                    <div style={{ display: 'flex', gap: '12px' }}>
+                      <AlertCircle size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
+                      <div style={{ fontSize: '12px', color: 'var(--fg)', lineHeight: 1.5 }}>
+                        By proceeding, you acknowledge the risk of capital fluctuations and agree to the 12-month lock-up period for institutional yield optimization.
+                      </div>
+                    </div>
+                    <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '16px', cursor: 'pointer', userSelect: 'none' }}>
+                      <input 
+                        type="checkbox" 
+                        checked={riskAccepted} 
+                        onChange={(e) => setRiskAccepted(e.target.checked)} 
+                        style={{ accentColor: 'var(--accent)' }}
+                      />
+                      <span style={{ fontSize: '11px', textTransform: 'uppercase', letterSpacing: '0.05em' }}>I accept the terms & conditions</span>
+                    </label>
+                  </div>
+
+                  <button 
+                    className="vault-btn vault-btn-primary" 
+                    style={{ width: '100%', marginTop: '8px' }}
+                    disabled={!riskAccepted || parseFloat(investAmount) < parseFloat(selectedPkg?.min_investment)}
+                    onClick={processInvest}
+                  >
+                    {selectedPkg?.type === 'crypto' ? 'Choose Payment Method' : 'Confirm & Execute'} <ArrowRight size={14} style={{ marginLeft: '8px' }} />
+                  </button>
+                </div>
+              )}
+
+              {investStep === ('method' as any) && (
+                <div className="reveal revealed">
+                  <div className="vault-package-tag" style={{ marginBottom: '8px' }}>Payment Method</div>
+                  <h3 className="vault-db-title" style={{ marginBottom: '8px' }}>Choose Funding Source</h3>
+                  <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '32px' }}>
+                    Select how you would like to fund this ${parseFloat(investAmount).toLocaleString()} {selectedPkg?.name} investment.
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div 
+                      className="vault-package-item" 
+                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px' }}
+                      onClick={() => { setInvestPaymentMethod('web3'); setInvestStep('input'); }}
+                    >
+                      <div style={{ background: 'rgba(55,114,255,0.1)', padding: '10px', borderRadius: '4px' }}>
+                        <Wallet size={20} color="#3772ff" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>Connected Web3 Wallet</div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                          {isConnected ? `Pay with ${address?.slice(0,6)}...${address?.slice(-4)}` : 'Connect your MetaMask or Trust Wallet'}
+                        </div>
+                      </div>
+                      <ArrowRight size={14} color="var(--muted)" />
+                    </div>
+
+                    <div 
+                      className="vault-package-item" 
+                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px' }}
+                      onClick={() => { setInvestPaymentMethod('internal'); setInvestStep('input'); }}
+                    >
+                      <div style={{ background: 'rgba(212,175,55,0.1)', padding: '10px', borderRadius: '4px' }}>
+                        <Gem size={20} color="var(--accent)" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>Imperial Balance (Escrow)</div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>
+                          Current balance: ${parseFloat(wallets.find(w => w.type === 'USD')?.balance || '0').toLocaleString()}
+                        </div>
+                      </div>
+                      <ArrowRight size={14} color="var(--muted)" />
+                    </div>
+                  </div>
+
+                  <button className="vault-auth-link" style={{ width: '100%', marginTop: '24px', fontSize: '11px' }} onClick={() => setInvestStep('input')}>Back to Configuration</button>
+                </div>
+              )}
+
+              {investStep === 'confirming' && (
+                <div style={{ textAlign: 'center', padding: '40px 0' }} className="reveal revealed">
+                  <div className="vault-loader-container">
+                    <div className="vault-institutional-loader" />
+                  </div>
+                  <h3 className="vault-db-title" style={{ marginTop: '32px' }}>Waiting for Signature</h3>
+                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '12px' }}>
+                    Please confirm the transaction in your connected wallet to allocate <strong>${investAmount}</strong>.
+                  </p>
+                  <div style={{ marginTop: '24px', fontSize: '10px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>
+                    ESTIMATED: {(parseFloat(investAmount) / 3500).toFixed(6)} ETH
+                  </div>
+                </div>
+              )}
+
+              {(investStep === 'processing' || isConfirming) && (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <div className="vault-loader-container">
+                    <div className="vault-institutional-loader" />
+                  </div>
+                  <h3 className="vault-db-title" style={{ marginTop: '32px' }}>
+                    {isConfirming ? 'Confirming On-Chain' : 'Processing Transaction'}
+                  </h3>
+                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '12px' }}>
+                    {isConfirming 
+                      ? 'Waiting for network confirmation... This usually takes less than 30 seconds.' 
+                      : 'Securing assets through institutional liquidity nodes...'}
+                  </p>
+                  {hash && (
+                    <a 
+                      href={`https://etherscan.io/tx/${hash}`} 
+                      target="_blank" 
+                      rel="noopener noreferrer"
+                      className="vault-auth-link"
+                      style={{ display: 'block', marginTop: '20px', fontSize: '11px' }}
+                    >
+                      View on Etherscan
+                    </a>
+                  )}
+                </div>
+              )}
+
+              {investStep === 'success' && (
+                <div style={{ textAlign: 'center', padding: '40px 0' }} className="reveal revealed">
+                  <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(0,255,0,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 32px' }}>
+                    <ShieldCheck size={48} color="var(--success)" />
+                  </div>
+                  <h3 className="vault-db-title">Investment Successful</h3>
+                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '12px', marginBottom: '32px' }}>
+                    Your capital has been successfully allocated to <strong>{selectedPkg?.name}</strong>. You can monitor performance in your history tab.
+                  </p>
+                  <button className="vault-btn vault-btn-secondary" style={{ width: '100%' }} onClick={closeInvest}>
+                    Return to Dashboard
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+        {/* ═══════════ DEPOSIT FLOW MODAL ═══════════ */}
+        {depositStep !== 'idle' && (
+          <div className="vault-modal-overlay" data-open="true" onClick={(e) => e.target === e.currentTarget && closeDeposit()}>
+            <div className="vault-auth-card" style={{ maxWidth: '500px' }}>
+              <button className="vault-modal-close" onClick={closeDeposit}>&times;</button>
+
+              {depositStep === 'method' && (
+                <div className="reveal revealed">
+                  <div className="vault-package-tag" style={{ marginBottom: '8px' }}>Imperial Funding</div>
+                  <h3 className="vault-db-title" style={{ marginBottom: '8px' }}>Select Method</h3>
+                  <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '32px' }}>
+                    Choose your preferred channel for funding your escrow balance.
+                  </div>
+
+                  <div style={{ display: 'flex', flexDirection: 'column', gap: '12px' }}>
+                    <div 
+                      className="vault-package-item" 
+                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px' }}
+                      onClick={() => { setDepositMethod('wise'); setDepositStep('amount'); }}
+                    >
+                      <div style={{ background: 'rgba(0,185,255,0.1)', padding: '10px', borderRadius: '4px' }}>
+                        <Send size={20} color="#00b9ff" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>Wise Transfer</div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Fast global transfers with minimal fees.</div>
+                      </div>
+                      <ArrowRight size={14} color="var(--muted)" />
+                    </div>
+
+                    <div 
+                      className="vault-package-item" 
+                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px' }}
+                      onClick={() => { setDepositMethod('bank'); setDepositStep('amount'); }}
+                    >
+                      <div style={{ background: 'rgba(212,175,55,0.1)', padding: '10px', borderRadius: '4px' }}>
+                        <Banknote size={20} color="var(--accent)" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>Bank Wire / SWIFT</div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Institutional-grade bank to bank transfers.</div>
+                      </div>
+                      <ArrowRight size={14} color="var(--muted)" />
+                    </div>
+
+                    <div 
+                      className="vault-package-item" 
+                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px' }}
+                      onClick={() => { setDepositMethod('crypto'); setDepositStep('amount'); }}
+                    >
+                      <div style={{ background: 'rgba(243,186,47,0.1)', padding: '10px', borderRadius: '4px' }}>
+                        <Coins size={20} color="#f3ba2f" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>Manual Crypto Transfer</div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Transfer BTC/USDT directly to platform vaults.</div>
+                      </div>
+                      <ArrowRight size={14} color="var(--muted)" />
+                    </div>
+
+                    <div 
+                      className="vault-package-item" 
+                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', opacity: 0.6, cursor: 'not-allowed' }}
+                    >
+                      <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '4px' }}>
+                        <CreditCard size={20} color="var(--muted)" />
+                      </div>
+                      <div style={{ flex: 1 }}>
+                        <div style={{ fontWeight: 500 }}>Credit / Debit Card</div>
+                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Currently undergoing maintenance.</div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              )}
+
+              {depositStep === 'amount' && (
+                <div className="reveal revealed">
+                  <div className="vault-package-tag" style={{ marginBottom: '8px' }}>Funding Amount</div>
+                  <h3 className="vault-db-title" style={{ marginBottom: '8px' }}>Deposit Amount</h3>
+                  <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '32px' }}>
+                    Enter the total USD value you wish to allocate to your escrow.
+                  </div>
+
+                  <div className="vault-input-group">
+                    <label className="vault-balance-label">Amount (USD)</label>
+                    <div style={{ position: 'relative' }}>
+                      <span style={{ position: 'absolute', left: 0, top: '12px', color: 'var(--accent)' }}>$</span>
+                      <input 
+                        type="number" 
+                        className="vault-input" 
+                        style={{ paddingLeft: '20px' }}
+                        value={depositAmount}
+                        onChange={(e) => setDepositAmount(e.target.value)}
+                        placeholder="0.00"
+                        autoFocus
+                      />
+                    </div>
+                  </div>
+
+                  <button 
+                    className="vault-btn vault-btn-primary" 
+                    style={{ width: '100%', marginTop: '32px' }}
+                    disabled={!depositAmount || parseFloat(depositAmount) <= 0}
+                    onClick={() => setDepositStep('instructions')}
+                  >
+                    Generate Instructions <ArrowRight size={14} style={{ marginLeft: '8px' }} />
+                  </button>
+                  <button className="vault-auth-link" style={{ width: '100%', marginTop: '16px', fontSize: '11px' }} onClick={() => setDepositStep('method')}>Back to Methods</button>
+                </div>
+              )}
+
+              {depositStep === 'instructions' && (
+                <div className="reveal revealed">
+                  <div className="vault-package-tag" style={{ marginBottom: '8px' }}>Payment Details</div>
+                  <h3 className="vault-db-title" style={{ marginBottom: '12px' }}>Follow Instructions</h3>
+                  
+                  <div style={{ background: 'var(--surface)', padding: '20px', borderRadius: '4px', border: '0.5px solid var(--border)', marginBottom: '24px' }}>
+                    {depositMethod === 'wise' && (
+                      <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', marginBottom: '8px' }}>Wise Recipient</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '12px' }}>
+                          <span>Email:</span>
+                          <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => copyToClipboard('treasury@goldtrust.vault')}>
+                            treasury@goldtrust.vault <Copy size={10} style={{ marginLeft: '4px' }} />
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '4px' }}>
+                          <span>Account Name:</span>
+                          <span>GoldTrust Imperial Holdings</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {depositMethod === 'bank' && (
+                      <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', marginBottom: '8px' }}>Bank Details (SWIFT)</div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span>Bank:</span>
+                          <span>Standard Chartered Bank</span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '8px' }}>
+                          <span>Account:</span>
+                          <span style={{ color: 'var(--accent)', cursor: 'pointer' }} onClick={() => copyToClipboard('9021-3942-8811')}>
+                            9021-3942-8811 <Copy size={10} style={{ marginLeft: '4px' }} />
+                          </span>
+                        </div>
+                        <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+                          <span>SWIFT Code:</span>
+                          <span>SCBLGB2L</span>
+                        </div>
+                      </div>
+                    )}
+
+                    {depositMethod === 'crypto' && (
+                      <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
+                        <div style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', marginBottom: '8px' }}>BTC Wallet (SegWit)</div>
+                        <div style={{ 
+                          padding: '12px', 
+                          background: 'var(--bg)', 
+                          border: '1px dashed var(--border)', 
+                          wordBreak: 'break-all', 
+                          textAlign: 'center', 
+                          fontFamily: 'var(--font-mono)',
+                          fontSize: '11px',
+                          color: 'var(--accent)',
+                          cursor: 'pointer'
+                        }} onClick={() => copyToClipboard('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')}>
+                          bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh
+                          <div style={{ fontSize: '9px', marginTop: '8px', color: 'var(--muted)' }}>Click to copy address</div>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+
+                  <div style={{ fontSize: '12px', color: 'var(--muted)', marginBottom: '32px', textAlign: 'center' }}>
+                    Once payment is sent, please provide the reference or transaction hash to finalize your request.
+                  </div>
+
+                  <button 
+                    className="vault-btn vault-btn-primary" 
+                    style={{ width: '100%' }}
+                    onClick={() => setDepositStep('proof')}
+                  >
+                    I Have Sent Funds <ArrowRight size={14} style={{ marginLeft: '8px' }} />
+                  </button>
+                  {isCopied && <div style={{ textAlign: 'center', fontSize: '10px', color: 'var(--success)', marginTop: '12px' }}>Details copied to clipboard</div>}
+                </div>
+              )}
+
+              {depositStep === 'proof' && (
+                <div className="reveal revealed">
+                  <div className="vault-package-tag" style={{ marginBottom: '8px' }}>Final Step</div>
+                  <h3 className="vault-db-title" style={{ marginBottom: '8px' }}>Payment Proof</h3>
+                  <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '32px' }}>
+                    Provide the reference number, hash, or transfer ID for manual verification.
+                  </div>
+
+                  <div className="vault-input-group">
+                    <label className="vault-balance-label">Reference / Transaction ID</label>
+                    <input 
+                      type="text" 
+                      className="vault-input" 
+                      value={depositProof}
+                      onChange={(e) => setDepositProof(e.target.value)}
+                      placeholder="e.g. W923485723"
+                      autoFocus
+                    />
+                  </div>
+
+                  <button 
+                    className="vault-btn vault-btn-primary" 
+                    style={{ width: '100%', marginTop: '32px' }}
+                    disabled={!depositProof}
+                    onClick={handleDepositSubmit}
+                  >
+                    Submit Request <ShieldCheck size={14} style={{ marginLeft: '8px' }} />
+                  </button>
+                  <button className="vault-auth-link" style={{ width: '100%', marginTop: '16px', fontSize: '11px' }} onClick={() => setDepositStep('instructions')}>Back to Details</button>
+                </div>
+              )}
+
+              {depositStep === 'processing' && (
+                <div style={{ textAlign: 'center', padding: '40px 0' }}>
+                  <div className="vault-loader-container">
+                    <div className="vault-institutional-loader" />
+                  </div>
+                  <h3 className="vault-db-title" style={{ marginTop: '32px' }}>Initiating Deposit</h3>
+                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '12px' }}>
+                    Generating institutional ledger entries...
+                  </p>
+                </div>
+              )}
+
+              {depositStep === 'success' && (
+                <div style={{ textAlign: 'center', padding: '40px 0' }} className="reveal revealed">
+                  <div style={{ width: '80px', height: '80px', borderRadius: '50%', background: 'rgba(212,175,55,0.1)', display: 'flex', alignItems: 'center', justifyContent: 'center', margin: '0 auto 32px' }}>
+                    <CheckCircle2 size={48} color="var(--accent)" />
+                  </div>
+                  <h3 className="vault-db-title">Request Submitted</h3>
+                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '12px', marginBottom: '32px' }}>
+                    Your deposit of <strong>${depositAmount}</strong> via <strong>{depositMethod?.toUpperCase()}</strong> is pending verification. Most deposits are processed within 1-2 hours.
+                  </p>
+                  <button className="vault-btn vault-btn-secondary" style={{ width: '100%' }} onClick={closeDeposit}>
+                    View History
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ MARKET CHART MODAL ═══════════ */}
+        {chartModalOpen && chartInvestment && (
+          <div className="vault-modal-overlay" data-open="true" onClick={(e) => e.target === e.currentTarget && setChartModalOpen(false)}>
+            <div className="vault-auth-card" style={{ maxWidth: '820px', width: '94%', padding: '24px' }}>
+              <button className="vault-modal-close" onClick={() => setChartModalOpen(false)}>&times;</button>
+              
+              <div className="reveal revealed">
+                <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', marginBottom: '20px' }}>
+                  <div>
+                    <div className="vault-package-tag" style={{ marginBottom: '8px' }}>{chartInvestment.package_type.toUpperCase()} MARKET</div>
+                    <h3 className="vault-db-title">{chartInvestment.package_name}</h3>
+                    <div style={{ fontSize: '12px', color: 'var(--muted)', marginTop: '4px', fontFamily: 'var(--font-mono)' }}>
+                      Active Allocation: ${parseFloat(chartInvestment.amount).toLocaleString()}
+                    </div>
+                  </div>
+                  <div style={{ textAlign: 'right' }}>
+                    <div style={{ fontSize: '28px', fontFamily: 'var(--font-display)', color: parseFloat(priceChange) >= 0 ? '#26a69a' : '#ef5350' }}>
+                      ${currentPrice.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                    </div>
+                    <div style={{ fontSize: '13px', fontFamily: 'var(--font-mono)', color: parseFloat(priceChange) >= 0 ? '#26a69a' : '#ef5350', marginTop: '2px' }}>
+                      {parseFloat(priceChange) >= 0 ? '+' : ''}{priceChange}%
+                    </div>
+                  </div>
+                </div>
+
+                {/* TIMEFRAME SELECTOR */}
+                <div style={{ display: 'flex', gap: '6px', marginBottom: '12px' }}>
+                  {(['1H', '1D', '1W', '1M'] as const).map(tf => (
+                    <button 
+                      key={tf}
+                      onClick={() => setChartTimeframe(tf)}
+                      style={{ 
+                        background: chartTimeframe === tf ? 'rgba(255,255,255,0.08)' : 'transparent', 
+                        color: chartTimeframe === tf ? '#fff' : 'var(--muted)',
+                        border: '1px solid',
+                        borderColor: chartTimeframe === tf ? 'rgba(255,255,255,0.15)' : 'transparent',
+                        padding: '5px 14px',
+                        borderRadius: '4px',
+                        fontSize: '11px',
+                        cursor: 'pointer',
+                        fontFamily: 'var(--font-mono)',
+                        letterSpacing: '0.04em',
+                        transition: 'all 0.15s ease'
+                      }}
+                    >
+                      {tf}
+                    </button>
+                  ))}
+                </div>
+
+                {/* PREMIUM CANDLESTICK CHART */}
+                <TradingChart
+                  data={chartData}
+                  currentPrice={currentPrice}
+                  priceChange={priceChange}
+                  baseAmount={parseFloat(chartInvestment.amount)}
+                  timeframe={chartTimeframe}
+                />
+              </div>
+            </div>
+          </div>
+        )}
+
+        {/* ═══════════ PENDING DEPOSIT FAB ═══════════ */}
+        {depositStep === 'idle' && depositMethod && depositAmount && (
+          <div className="vault-fab" onClick={() => setDepositStep(localStorage.getItem('pendingDepositStep') as any || 'instructions')}>
+            <div className="vault-fab-icon">
+              <Banknote size={16} />
+            </div>
+            <div className="vault-fab-text">
+              Continue Deposit (${depositAmount})
+            </div>
+            <X 
+              size={14} 
+              style={{ marginLeft: '8px', cursor: 'pointer', opacity: 0.6 }} 
+              onClick={(e) => {
+                e.stopPropagation();
+                cancelDeposit();
+              }}
+            />
+          </div>
+        )}
+
+        {/* ═══════════ LIVE CHAT ═══════════ */}
+        <div className={`vault-chat-widget ${chatOpen ? 'open' : ''}`}>
+          <div className="vault-chat-header" onClick={() => setChatOpen(!chatOpen)}>
+            <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+              <div className="vault-chat-status" />
+              <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.1em' }}>CAPITAL ADVISOR</span>
+            </div>
+            <button className="vault-chat-toggle">{chatOpen ? '−' : '+'}</button>
+          </div>
+          
+          <div className="vault-chat-body">
+            <div className="vault-chat-messages">
+              {chatMessages.map(msg => (
+                <div key={msg.id} className={`vault-chat-msg ${msg.sender}`}>
+                  <div className="vault-chat-msg-content">{msg.text}</div>
+                  <div className="vault-chat-msg-time">{msg.time}</div>
+                </div>
+              ))}
+              <div ref={chatEndRef} />
+            </div>
+            
+            <form className="vault-chat-input-area" onSubmit={handleSendChatMessage}>
+              <input 
+                type="text" 
+                className="vault-chat-input" 
+                placeholder="Inquire about holdings..." 
+                value={chatInput}
+                onChange={(e) => setChatInput(e.target.value)}
+              />
+              <button type="submit" className="vault-chat-send">
+                <Send size={14} />
+              </button>
+            </form>
+          </div>
+        </div>
+
+        {!chatOpen && (
+          <button className="vault-chat-trigger" onClick={() => setChatOpen(true)}>
+            <Gem size={24} />
+            <div className="vault-chat-badge" />
+          </button>
+        )}
       </main>
     </div>
   );

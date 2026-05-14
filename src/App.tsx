@@ -1,6 +1,8 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
 import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom'
+import api from './api'
 import Dashboard from './dashboard/Dashboard'
+import Admin from './admin/Admin'
 import './App.css'
 
 /* ───────────────────── DATA ───────────────────── */
@@ -32,9 +34,10 @@ const TESTIMONIALS = [
   },
   {
     quote: "A rare combination of sovereign-grade security and algorithmic transparency. It's the only platform I trust with our core liquidity.",
-    author: "Elena Petrova",
-    title: "Director of Institutional Wealth",
-    location: "Singapore"
+    author: "Amira Al-Dahab",
+    title: "Sovereign Wealth Strategist",
+    location: "Dubai",
+    premium: true
   },
   {
     quote: "The interface reflects the service: clean, precise, and profoundly focused on results. Finally, a platform that speaks the language of capital.",
@@ -88,25 +91,26 @@ const CHART_HEIGHTS = [20, 35, 25, 45, 60, 55, 75, 90, 85, 100]
 
 const STRATEGIES = [
   {
-    num: 'OPTION 01',
+    num: 'PRIMARY ASSET',
+    title: 'Gold Mining',
+    body: 'Get direct exposure to gold mining profits and real-world gold assets. Our flagship physical backing strategy.',
+    metric: '$1.2B',
+    metricLabel: 'TOTAL VALUE',
+    featured: true
+  },
+  {
+    num: 'OPTION 02',
     title: 'Crypto Investing',
     body: 'Invest directly in Bitcoin and other digital coins with zero risk of losing your access.',
     metric: '+154%',
     metricLabel: '3Y PROFIT',
   },
   {
-    num: 'OPTION 02',
+    num: 'OPTION 03',
     title: 'Stock Exchange',
     body: 'Trade shares in the world’s biggest companies easily from one simple dashboard.',
     metric: '+18.2%',
     metricLabel: 'AVG YEARLY',
-  },
-  {
-    num: 'OPTION 03',
-    title: 'Gold Mining',
-    body: 'Get direct exposure to gold mining profits and real-world gold assets.',
-    metric: '$1.2B',
-    metricLabel: 'TOTAL VALUE',
   },
 ]
 
@@ -369,7 +373,7 @@ function MarketExplorer() {
   const currentCoins = filteredCoins.slice((page - 1) * itemsPerPage, page * itemsPerPage);
 
   return (
-    <section className="vault-section" id="markets" style={{ borderTop: '0.5px solid var(--border)', background: 'var(--bg)' }}>
+    <section className="vault-section vault-section-grid" id="markets" style={{ borderTop: '0.5px solid var(--border)', background: 'var(--bg)' }}>
       <div className="vault-section-header centered reveal">
         <span className="vault-label">Market Intelligence</span>
         <h2 className="vault-section-title">Live Asset Tracking.</h2>
@@ -636,9 +640,13 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
       {/* ═══════════ HERO ═══════════ */}
       <section className="vault-hero" id="hero" onMouseMove={handleMouseMove}>
         <div className="vault-hero-bg">
+          <div className="vault-hero-img-container">
+            <img src="/abstract_gold_flow_1778360579462.png" alt="Institutional Wealth" className="vault-hero-img" style={{ transform: 'translate(calc(var(--hero-x) * 0.05), calc(var(--hero-y) * 0.05))' }} />
+          </div>
           <div className="vault-orb vault-orb-1" style={{ transform: 'translate(var(--hero-x), var(--hero-y))' }} />
           <div className="vault-orb vault-orb-2" style={{ transform: 'translate(calc(var(--hero-x) * -1), calc(var(--hero-y) * -1))' }} />
           <div className="vault-grid-pattern" />
+          <div className="vault-hero-overlay" />
         </div>
 
         <div className="vault-hero-content" style={{ transform: 'translate(calc(var(--hero-x) * 0.2), calc(var(--hero-y) * 0.2))' }}>
@@ -704,7 +712,10 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
       </div>
 
       {/* ═══════════ FEATURES ═══════════ */}
-      <section className="vault-section" id="institutional">
+      <section className="vault-section vault-section-imaged" id="institutional">
+        <div className="vault-section-bg-img">
+          <img src="/wealth_man_luxury_office_1778360535864.png" alt="" className="vault-section-bg-photo" />
+        </div>
         <div className="vault-section-header reveal">
           <span className="vault-label">Our Service</span>
           <h2 className="vault-section-title">A Better Way to Invest.</h2>
@@ -745,22 +756,9 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
       <section className="vault-section vault-narrative" id="wealth">
         <div className="vault-narrative-split">
           <div className="vault-narrative-visual reveal">
-            <svg viewBox="0 0 200 200" fill="none" stroke="var(--accent)" strokeWidth="0.5">
-              <g className="vault-svg-ring vault-svg-ring-1">
-                <circle cx="100" cy="100" r="90" strokeDasharray="3 3" />
-                <circle cx="100" cy="100" r="75" strokeDasharray="6 6" />
-              </g>
-              <g className="vault-svg-ring vault-svg-ring-2">
-                <circle cx="100" cy="100" r="60" strokeDasharray="2 4" />
-                <circle cx="100" cy="100" r="45" strokeDasharray="4 8" />
-              </g>
-              <line x1="100" y1="5" x2="100" y2="195" opacity="0.15" />
-              <line x1="5" y1="100" x2="195" y2="100" opacity="0.15" />
-              <line x1="20" y1="20" x2="180" y2="180" opacity="0.1" />
-              <line x1="180" y1="20" x2="20" y2="180" opacity="0.1" />
-              <circle cx="100" cy="100" r="3" fill="var(--accent)" stroke="none" />
-              <circle cx="100" cy="100" r="8" strokeWidth="0.3" opacity="0.5" />
-            </svg>
+            <img src="/crypto_visual_v2.png" alt="GoldTrust Vision" className="vault-visual-img" />
+            <div className="vault-visual-overlay" />
+            <div className="vault-visual-glow" />
           </div>
 
           <div className="vault-narrative-content reveal reveal-delay-2">
@@ -798,7 +796,7 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
       </section>
 
       {/* ═══════════ ABOUT US ═══════════ */}
-      <section className="vault-section" id="about" style={{ borderTop: '0.5px solid var(--border)' }}>
+      <section className="vault-section vault-section-grid" id="about" style={{ borderTop: '0.5px solid var(--border)' }}>
         <div className="vault-about-split">
           <div className="vault-about-text reveal">
             <span className="vault-label">What We Do</span>
@@ -818,25 +816,34 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
             </p>
           </div>
 
-          <div className="vault-about-stats reveal reveal-delay-2">
-            {ABOUT_STATS.map((s) => (
-              <div className="vault-about-stat" key={s.label}>
-                <span className="vault-info-label">{s.label}</span>
-                <div className="vault-stat-value" style={{ fontSize: 48 }}>{s.value}</div>
+          <div className="vault-about-visual-container reveal reveal-delay-2">
+            <div className="vault-about-visual-inner">
+              <img src="/gold_visual.png" alt="Gold Mining" className="vault-about-img" />
+              <div className="vault-about-img-overlay" />
+              <div className="vault-about-stats-overlay">
+                {ABOUT_STATS.map((s) => (
+                  <div className="vault-about-stat" key={s.label}>
+                    <span className="vault-info-label">{s.label}</span>
+                    <div className="vault-stat-value" style={{ fontSize: 32 }}>{s.value}</div>
+                  </div>
+                ))}
               </div>
-            ))}
-            <div className="vault-about-stat" style={{ gridColumn: 'span 2', background: 'var(--surface)' }}>
-              <span className="vault-info-label">Global Presence</span>
-              <p className="vault-section-desc" style={{ fontSize: 14, marginTop: 8 }}>
-                Operating from major financial hubs including Zurich, Singapore, London, and New York.
-              </p>
+            </div>
+            <div className="vault-about-presence">
+               <span className="vault-info-label">Global Presence</span>
+               <p className="vault-section-desc" style={{ fontSize: 13, marginTop: 8 }}>
+                 Operating from Zurich, Singapore, London, and New York.
+               </p>
             </div>
           </div>
         </div>
       </section>
 
       {/* ═══════════ TESTIMONIALS ═══════════ */}
-      <section className="vault-section" id="testimonials" style={{ background: 'var(--surface)' }}>
+      <section className="vault-section vault-section-imaged" id="testimonials" style={{ background: 'var(--surface)' }}>
+        <div className="vault-section-bg-img vault-section-bg-right">
+          <img src="/hero.png" alt="" className="vault-section-bg-photo" />
+        </div>
         <div className="vault-section-header centered reveal">
           <span className="vault-label">What Our Users Say</span>
           <h2 className="vault-section-title">Join Thousands of Investors.</h2>
@@ -847,7 +854,8 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
 
         <div className="vault-testimonials-grid">
           {TESTIMONIALS.map((t, idx) => (
-            <div className={`vault-testimonial-card reveal reveal-delay-${idx + 1}`} key={t.author}>
+            <div className={`vault-testimonial-card ${t.premium ? 'premium' : ''} reveal reveal-delay-${idx + 1}`} key={t.author}>
+              {t.premium && <div className="vault-premium-badge">TOP RATED INVESTOR</div>}
               <p className="vault-testimonial-quote">{t.quote}</p>
               <div className="vault-testimonial-author">
                 <span className="vault-author-name">{t.author}</span>
@@ -859,7 +867,7 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
       </section>
 
       {/* ═══════════ MARQUEE ═══════════ */}
-      <div className="vault-marquee">
+      <div className="vault-marquee vault-section-grid">
         <div className="vault-marquee-inner">
           {[...PARTNERS, ...PARTNERS, ...PARTNERS].map((p, i) => (
             <span className="vault-partner" key={i}>{p}</span>
@@ -868,7 +876,10 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
       </div>
 
       {/* ═══════════ STRATEGIES ═══════════ */}
-      <section className="vault-section" id="performance">
+      <section className="vault-section vault-section-imaged" id="performance">
+        <div className="vault-section-bg-img vault-section-bg-center">
+          <img src="/crypto_vault_futuristic_1778360649446.png" alt="" className="vault-section-bg-photo" />
+        </div>
         <div className="vault-section-header centered reveal">
           <span className="vault-label">Investment Types</span>
           <h2 className="vault-section-title">More Than Just a Bank.</h2>
@@ -877,7 +888,7 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
         <div className="vault-strategy-grid">
           {STRATEGIES.map((s, idx) => (
             <div 
-              className={`vault-strategy-card reveal reveal-delay-${idx + 1}`} 
+              className={`vault-strategy-card ${s.featured ? 'featured' : ''} reveal reveal-delay-${idx + 1}`} 
               key={s.title}
               onMouseMove={handleCardTilt}
               onMouseLeave={resetCardTilt}
@@ -910,7 +921,10 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
         </div>
       </section>
 
-      <section className="vault-section vault-cta" id="apply">
+      <section className="vault-section vault-cta vault-section-imaged" id="apply">
+        <div className="vault-section-bg-img vault-section-bg-cta">
+          <img src="/wealth_man_luxury_office_1778360535864.png" alt="" className="vault-section-bg-photo" />
+        </div>
         <div className="reveal">
           <span className="vault-label" style={{ marginBottom: 32 }}>Last Step</span>
           <h2 className="vault-section-title">Ready to Grow Your Money?</h2>
@@ -930,7 +944,95 @@ function AppContent() {
   const [showAuth, setShowAuth] = useState(false)
   const [isRegister, setIsRegister] = useState(false)
   const [toasts, setToasts] = useState<any[]>([])
+  const [chatOpen, setChatOpen] = useState(false)
+  const [chatMessages, setChatMessages] = useState<any[]>([
+    { id: 1, text: "Welcome to GOLDTRUST Imperial Holdings. How may we assist your capital objectives today?", sender: 'bot', time: '21:16' }
+  ])
+  const [chatInput, setChatInput] = useState('')
+  const [authForm, setAuthForm] = useState({
+    fullName: '',
+    email: '',
+    password: '',
+    preferredAsset: ''
+  })
+  const [showPassword, setShowPassword] = useState(false)
+  const [authLoading, setAuthLoading] = useState(false)
+  const [authError, setAuthError] = useState('')
+  const [verificationPending, setVerificationPending] = useState(false)
+  const [otp, setOtp] = useState(['', '', '', '', '', ''])
+  const otpRefs = useRef<(HTMLInputElement | null)[]>([])
+  const chatEndRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+
+  const scrollToBottom = () => {
+    chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
+  }
+
+  const fetchChatMessages = useCallback(async () => {
+    const token = localStorage.getItem('token');
+    if (!token) return;
+    try {
+      const res = await api.get('/chat');
+      if (res.data && Array.isArray(res.data)) {
+        const formatted = res.data.map((m: any) => ({
+          id: m.id,
+          text: m.message,
+          sender: m.sender_type === 'user' ? 'user' : 'bot',
+          time: new Date(m.created_at).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+        }));
+        // If we have messages, replace the default welcome
+        if (formatted.length > 0) {
+          setChatMessages(formatted);
+        }
+      }
+    } catch (err) {
+      console.error('Failed to fetch chat messages', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    fetchChatMessages();
+    const interval = setInterval(fetchChatMessages, 5000);
+    return () => clearInterval(interval);
+  }, [fetchChatMessages]);
+
+  useEffect(() => {
+    scrollToBottom()
+  }, [chatMessages])
+
+  const handleSendMessage = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!chatInput.trim()) return
+
+    const token = localStorage.getItem('token');
+    
+    if (token) {
+      try {
+        await api.post('/chat', { message: chatInput });
+        setChatInput('');
+        fetchChatMessages();
+      } catch (err) {
+        console.error('Failed to send message', err);
+      }
+    } else {
+      // Guest mode logic
+      const userMsg = { id: Date.now(), text: chatInput, sender: 'user', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+      setChatMessages(prev => [...prev, userMsg])
+      setChatInput('')
+
+      // Simulate bot response for guests
+      setTimeout(() => {
+        const responses = [
+          "Please sign in to your Capital Portal for priority advisor access.",
+          "Our institutional nodes are currently reserved for whitelisted members.",
+          "For direct support, please register your access request above.",
+          "Zurich office support is available for authenticated investors."
+        ]
+        const botMsg = { id: Date.now() + 1, text: responses[Math.floor(Math.random() * responses.length)], sender: 'bot', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
+        setChatMessages(prev => [...prev, botMsg])
+      }, 1500)
+    }
+  }
 
   /* ── Auth Handlers ── */
   const openAuth = useCallback(() => {
@@ -947,13 +1049,101 @@ function AppContent() {
   const toggleAuthMode = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     setIsRegister((v) => !v)
+    setAuthError('')
+    setVerificationPending(false)
+    setOtp(['', '', '', '', '', ''])
+    setShowPassword(false)
   }, [])
 
-  const handleAuthSubmit = (e: React.FormEvent) => {
+  const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
-    // Simulated auth success
-    setShowAuth(false)
-    navigate('/dashboard')
+    setAuthLoading(true)
+    setAuthError('')
+
+    try {
+      if (isRegister) {
+        await api.post('/auth/register', {
+          email: authForm.email,
+          password: authForm.password,
+          fullName: authForm.fullName
+        })
+        setVerificationPending(true)
+      } else {
+        const res = await api.post('/auth/login', {
+          email: authForm.email,
+          password: authForm.password
+        })
+        localStorage.setItem('token', res.data.token)
+        localStorage.setItem('user', JSON.stringify(res.data.user))
+        setShowAuth(false)
+        if (res.data.user.role === 'admin') {
+          navigate('/admin')
+        } else {
+          navigate('/dashboard')
+        }
+      }
+    } catch (err: any) {
+      setAuthError(err.response?.data?.message || err.response?.data?.error || 'Authentication failed')
+      if (err.response?.status === 403 && !isRegister) {
+        setVerificationPending(true)
+      }
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleOtpChange = (index: number, value: string) => {
+    if (!/^\d*$/.test(value)) return;
+    const newOtp = [...otp];
+    newOtp[index] = value.slice(-1);
+    setOtp(newOtp);
+    
+    if (value && index < 5) {
+      otpRefs.current[index + 1]?.focus();
+    }
+  };
+
+  const handleOtpKeyDown = (index: number, e: React.KeyboardEvent) => {
+    if (e.key === 'Backspace' && !otp[index] && index > 0) {
+      otpRefs.current[index - 1]?.focus();
+    }
+  };
+
+  const handleVerifyOTP = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const otpString = otp.join('')
+    if (otpString.length !== 6) return
+
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      await api.post('/auth/verify-otp', {
+        email: authForm.email,
+        otp: otpString
+      })
+      setVerificationPending(false)
+      setIsRegister(false)
+      setAuthError('')
+      setOtp(['', '', '', '', '', ''])
+      // Inform user they can now login
+    } catch (err: any) {
+      setAuthError(err.response?.data?.error || 'Verification failed')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleResendOTP = async () => {
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      await api.post('/auth/resend-otp', { email: authForm.email })
+      // Could show a "Code resent" success message here
+    } catch (err: any) {
+      setAuthError(err.response?.data?.error || 'Failed to resend code')
+    } finally {
+      setAuthLoading(false)
+    }
   }
 
   /* ── Investment Toast Logic ── */
@@ -1004,7 +1194,10 @@ function AppContent() {
     <div className="vault-landing">
       {/* ═══════════ NAVIGATION ═══════════ */}
       <nav className="vault-nav" data-scrolled={scrolled}>
-        <a className="vault-logo" href="#">GOLDTRUST</a>
+        <a className="vault-logo" href="#">
+          <img src="/logo-trans.png" alt="GoldTrust Logo" className="vault-logo-icon" />
+          <span>GOLDTRUST</span>
+        </a>
 
         <div className="vault-nav-links">
           <a href="#institutional" className="vault-nav-link">Institutional</a>
@@ -1077,49 +1270,164 @@ function AppContent() {
       <div className="vault-modal-overlay" data-open={showAuth} onClick={(e) => e.target === e.currentTarget && closeAuth()}>
         <div className="vault-auth-card">
           <button className="vault-modal-close" onClick={closeAuth} aria-label="Close modal">&times;</button>
-          <div className="vault-auth-logo">GOLDTRUST</div>
+          <div className="vault-auth-logo">
+            <img src="/logo-trans.png" alt="GoldTrust Logo" className="vault-auth-logo-icon" />
+            <span>GOLDTRUST</span>
+          </div>
           
-          <form onSubmit={handleAuthSubmit}>
-            <div className="vault-input-group" data-hidden={!isRegister} style={!isRegister ? { height: 0, margin: 0, opacity: 0, overflow: 'hidden', pointerEvents: 'none', padding: 0 } : { transition: 'all 0.3s ease' }}>
-              <label className="vault-input-label">Full Name</label>
-              <input 
-                type="text" 
-                className="vault-input" 
-                placeholder="James Wellington" 
-                required={isRegister}
-              />
-            </div>
-            <div className="vault-input-group">
-              <label className="vault-input-label">Identity / Email</label>
-              <input 
-                type="email" 
-                className="vault-input" 
-                placeholder="investor@private.vault" 
-                required 
-              />
-            </div>
-            <div className="vault-input-group" data-hidden={!isRegister} style={!isRegister ? { height: 0, margin: 0, opacity: 0, overflow: 'hidden', pointerEvents: 'none', padding: 0 } : { transition: 'all 0.3s ease' }}>
-              <label className="vault-input-label">Preferred Asset</label>
-              <select className="vault-input" required={isRegister} style={{ background: 'none', appearance: 'none' }}>
-                <option value="" disabled selected style={{ background: 'var(--bg)' }}>Select an Asset Class</option>
-                <option value="crypto" style={{ background: 'var(--bg)' }}>Crypto Portfolio</option>
-                <option value="stocks" style={{ background: 'var(--bg)' }}>Stock Exchange</option>
-                <option value="gold" style={{ background: 'var(--bg)' }}>Gold Mining</option>
-              </select>
-            </div>
-            <div className="vault-input-group">
-              <label className="vault-input-label">{isRegister ? 'New Access Key' : 'Access Key'}</label>
-              <input 
-                type="password" 
-                className="vault-input" 
-                placeholder="••••••••••••" 
-                required 
-              />
-            </div>
-            
-            <button type="submit" className="vault-btn vault-btn-primary" style={{ width: 100 + '%', marginTop: 24 }}>
-              {isRegister ? 'Request Access' : 'Verify Access'}
-            </button>
+          <form onSubmit={verificationPending ? handleVerifyOTP : handleAuthSubmit}>
+            {authError && (
+              <div style={{ 
+                padding: '12px', 
+                background: 'rgba(248, 113, 113, 0.1)', 
+                border: '1px solid #f87171', 
+                color: '#f87171', 
+                fontSize: '0.85rem', 
+                marginBottom: '20px',
+                borderRadius: '4px'
+              }}>
+                {authError}
+              </div>
+            )}
+
+            {verificationPending ? (
+              <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '8px', fontWeight: 500 }}>Secure Verification</h3>
+                <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '32px' }}>
+                  We've sent a 6-digit security code to <span style={{ color: 'var(--fg)' }}>{authForm.email}</span>.
+                </p>
+                
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '32px' }}>
+                  {otp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={el => otpRefs.current[i] = el}
+                      type="text"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleOtpChange(i, e.target.value)}
+                      onKeyDown={e => handleOtpKeyDown(i, e)}
+                      style={{
+                        width: '45px',
+                        height: '55px',
+                        textAlign: 'center',
+                        fontSize: '1.5rem',
+                        fontFamily: 'var(--font-mono)',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--accent)',
+                        borderRadius: '4px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s ease'
+                      }}
+                      onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                      onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                    />
+                  ))}
+                </div>
+
+                <button 
+                  type="submit"
+                  className="vault-btn vault-btn-primary" 
+                  style={{ width: '100%', marginBottom: '20px' }}
+                  disabled={authLoading || otp.join('').length !== 6}
+                >
+                  {authLoading ? 'Verifying...' : 'Complete Access Request'}
+                </button>
+
+                <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                  Didn't receive the code?{' '}
+                  <button 
+                    type="button" 
+                    onClick={handleResendOTP}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}
+                    disabled={authLoading}
+                  >
+                    Resend Code
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <>
+                <div className="vault-input-group" style={!isRegister ? { height: 0, margin: 0, opacity: 0, overflow: 'hidden', pointerEvents: 'none', padding: 0 } : { transition: 'all 0.3s ease', marginBottom: '20px' }}>
+                  <label className="vault-input-label">Full Name</label>
+                  <input 
+                    type="text" 
+                    className="vault-input" 
+                    placeholder="James Wellington" 
+                    required={isRegister}
+                    value={authForm.fullName}
+                    onChange={e => setAuthForm({...authForm, fullName: e.target.value})}
+                  />
+                </div>
+                <div className="vault-input-group">
+                  <label className="vault-input-label">Identity / Email</label>
+                  <input 
+                    type="email" 
+                    className="vault-input" 
+                    placeholder="investor@private.vault" 
+                    required 
+                    value={authForm.email}
+                    onChange={e => setAuthForm({...authForm, email: e.target.value})}
+                  />
+                </div>
+                <div className="vault-input-group" style={!isRegister ? { height: 0, margin: 0, opacity: 0, overflow: 'hidden', pointerEvents: 'none', padding: 0 } : { transition: 'all 0.3s ease', marginBottom: '20px' }}>
+                  <label className="vault-input-label">Preferred Asset</label>
+                  <select 
+                    className="vault-input" 
+                    required={isRegister} 
+                    style={{ background: 'none', appearance: 'none' }}
+                    value={authForm.preferredAsset}
+                    onChange={e => setAuthForm({...authForm, preferredAsset: e.target.value})}
+                  >
+                    <option value="" disabled style={{ background: 'var(--bg)' }}>Select an Asset Class</option>
+                    <option value="crypto" style={{ background: 'var(--bg)' }}>Crypto Portfolio</option>
+                    <option value="stocks" style={{ background: 'var(--bg)' }}>Stock Exchange</option>
+                    <option value="gold" style={{ background: 'var(--bg)' }}>Gold Mining</option>
+                  </select>
+                </div>
+                <div className="vault-input-group">
+                  <label className="vault-input-label">{isRegister ? 'New Access Key' : 'Access Key'}</label>
+                  <div className="vault-password-wrapper">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      className="vault-input" 
+                      placeholder="••••••••••••" 
+                      required 
+                      value={authForm.password}
+                      onChange={e => setAuthForm({...authForm, password: e.target.value})}
+                    />
+                    <button 
+                      type="button" 
+                      className="vault-password-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+                
+                <button 
+                  type="submit" 
+                  className="vault-btn vault-btn-primary" 
+                  style={{ width: '100%', marginTop: '24px', opacity: authLoading ? 0.7 : 1 }}
+                  disabled={authLoading}
+                >
+                  {authLoading ? 'Processing...' : (isRegister ? 'Request Access' : 'Verify Access')}
+                </button>
+              </>
+            )}
           </form>
 
           <div className="vault-auth-footer">
@@ -1130,9 +1438,56 @@ function AppContent() {
           </div>
         </div>
       </div>
+      {/* ═══════════ LIVE CHAT ═══════════ */}
+      <div className={`vault-chat-widget ${chatOpen ? 'open' : ''}`}>
+        <div className="vault-chat-header" onClick={() => setChatOpen(!chatOpen)}>
+          <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+            <div className="vault-chat-status" />
+            <span style={{ fontSize: 12, fontWeight: 500, letterSpacing: '0.1em' }}>CAPITAL ADVISOR</span>
+          </div>
+          <button className="vault-chat-toggle">{chatOpen ? '−' : '+'}</button>
+        </div>
+        
+        <div className="vault-chat-body">
+          <div className="vault-chat-messages">
+            {chatMessages.map(msg => (
+              <div key={msg.id} className={`vault-chat-msg ${msg.sender}`}>
+                <div className="vault-chat-msg-content">{msg.text}</div>
+                <div className="vault-chat-msg-time">{msg.time}</div>
+              </div>
+            ))}
+            <div ref={chatEndRef} />
+          </div>
+          
+          <form className="vault-chat-input-area" onSubmit={handleSendMessage}>
+            <input 
+              type="text" 
+              className="vault-chat-input" 
+              placeholder="Inquire about holdings..." 
+              value={chatInput}
+              onChange={(e) => setChatInput(e.target.value)}
+            />
+            <button type="submit" className="vault-chat-send">
+              <svg viewBox="0 0 24 24" width="16" height="16" fill="none" stroke="currentColor" strokeWidth="2">
+                <path d="M22 2L11 13M22 2l-7 20-4-9-9-4 20-7z" />
+              </svg>
+            </button>
+          </form>
+        </div>
+      </div>
+
+      {!chatOpen && (
+        <button className="vault-chat-trigger" onClick={() => setChatOpen(true)}>
+          <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5">
+            <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
+          </svg>
+          <div className="vault-chat-badge" />
+        </button>
+      )}
     </div>
   )
 }
+
 
 function App() {
   return (
@@ -1140,6 +1495,7 @@ function App() {
       <Routes>
         <Route path="/" element={<AppContent />} />
         <Route path="/dashboard" element={<Dashboard />} />
+        <Route path="/admin" element={<Admin />} />
       </Routes>
     </Router>
   )
