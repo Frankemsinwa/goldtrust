@@ -346,7 +346,7 @@ function MarketExplorer() {
   const [search, setSearch] = useState('');
   const [page, setPage] = useState(1);
   const [selectedCoin, setSelectedCoin] = useState<any>(null);
-  const [] = useState(true);
+  const [loading, setLoading] = useState(true);
   
   const itemsPerPage = 6;
 
@@ -1301,7 +1301,7 @@ function AppContent() {
                   {otp.map((digit, i) => (
                     <input
                       key={i}
-                      ref={el => { otpRefs.current[i] = el; }}
+                      ref={el => { if (el) otpRefs.current[i] = el; }}
                       type="text"
                       maxLength={1}
                       value={digit}

@@ -45,7 +45,6 @@ export default function Dashboard() {
   const [investments, setInvestments] = useState<any[]>([]);
   const [wallets, setWallets] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
-  const [] = useState(true);
 
   // Market Engine State
   const [totalProfit, setTotalProfit] = useState(0);
@@ -114,8 +113,6 @@ export default function Dashboard() {
       setHistory(histRes.data);
     } catch (err) {
       console.error('Failed to fetch dashboard data', err);
-    } finally {
-      setLoading(false);
     }
   }, []);
 
@@ -346,14 +343,6 @@ export default function Dashboard() {
       setInvestError(err.response?.data?.error || 'Investment failed');
       setInvestStep('input');
     }
-  };
-
-  const verifyWeb3Tx = async () => {
-    // Legacy flow removed in favor of automatic detection
-  };
-
-  const linkExternalWallet = async () => {
-    open();
   };
 
   const closeInvest = () => {

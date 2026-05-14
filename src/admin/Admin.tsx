@@ -34,10 +34,10 @@ export default function Admin() {
 
   // Real Data State
   const [stats, setStats] = useState<any>(null);
-  const [users] = useState<any[]>([]);
-  const [investments] = useState<any[]>([]);
-  const [transactions] = useState<any[]>([]);
-  const [] = useState(true);
+  const [users, setUsers] = useState<any[]>([]);
+  const [investments, setInvestments] = useState<any[]>([]);
+  const [transactions, setTransactions] = useState<any[]>([]);
+  const [loading, setLoading] = useState(true);
 
   const fetchChatHistory = useCallback(async (userId: number) => {
     try {
@@ -155,7 +155,14 @@ export default function Admin() {
           </div>
         </header>
 
-        <div className="admin-body">
+        {loading ? (
+          <div style={{ flex: 1, display: 'flex', alignItems: 'center', justifyContent: 'center' }}>
+            <div className="vault-loader-container">
+              <div className="vault-institutional-loader" />
+            </div>
+          </div>
+        ) : (
+          <div className="admin-body">
           {/* ═══ OVERVIEW ═══ */}
           {tab === 'overview' && (<>
             <div className="admin-stats-row">
@@ -421,6 +428,7 @@ export default function Admin() {
             </div>
           )}
         </div>
+        )}
       </main>
     </div>
   );
