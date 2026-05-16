@@ -13,7 +13,8 @@ const {
     approveTransaction, 
     getAdminChats, 
     replyToChat,
-    getAdminChatHistory
+    getAdminChatHistory,
+    toggleUserBlock
 } = require('../controllers/adminController');
 const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
@@ -218,6 +219,7 @@ router.get('/admin/stats', authMiddleware, adminMiddleware, getAdminStats);
  *     security: [{bearerAuth: []}]
  */
 router.get('/admin/users', authMiddleware, adminMiddleware, getAdminUsers);
+router.put('/admin/users/:userId/block', authMiddleware, adminMiddleware, toggleUserBlock);
 
 /**
  * @swagger

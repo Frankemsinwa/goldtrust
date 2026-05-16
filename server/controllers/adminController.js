@@ -31,7 +31,7 @@ const getAdminStats = async (req, res) => {
 const getAdminUsers = async (req, res) => {
     try {
         const result = await query(
-            'SELECT id, email, full_name, tier, kyc_status, role, created_at FROM users WHERE role = $1 ORDER BY created_at DESC',
+            'SELECT id, email, full_name, tier, kyc_status, role, is_blocked, failed_attempts, created_at FROM users WHERE role = $1 ORDER BY created_at DESC',
             ['user']
         );
         res.json(result.rows);
@@ -182,6 +182,21 @@ const getAdminChatHistory = async (req, res) => {
     }
 };
 
+const toggleUserBlock = async (req, res) => {
+    const { userId } = req.params;
+    const { isBlocked } = req.body;
+
+    try {
+        await query(
+            'UPDATE users SET is_blocked = $1, failed_attempts = $2 WHERE id = $3',
+            [isBlocked, isBlocked ? 4 : 0, userId]
+        );
+        res.json({ message: `User ${isBlocked ? 'blocked' : 'unblocked'} successfully` });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update user block status', message: err.message });
+    }
+};
+
 module.exports = { 
     getAdminStats, 
     getAdminUsers, 
@@ -191,5 +206,6 @@ module.exports = {
     approveTransaction, 
     getAdminChats, 
     replyToChat,
-    getAdminChatHistory
+    getAdminChatHistory,
+    toggleUserBlock
 };

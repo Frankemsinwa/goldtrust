@@ -113,7 +113,14 @@ export default function Admin() {
     }
   };
 
-  const activeChat = chats.find(c => c.user_id === selectedChat);
+  const handleToggleBlock = async (userId: number, isBlocked: boolean) => {
+    try {
+      await api.put(`/admin/users/${userId}/block`, { isBlocked });
+      fetchAdminData();
+    } catch (err) {
+      console.error('Failed to toggle user block status', err);
+    }
+  };
 
   const tabTitle: Record<string, string> = {
     overview: 'Command Center', users: 'Registered Users', investments: 'Investment Ledger',
@@ -229,10 +236,31 @@ export default function Admin() {
                         <td><span style={{ color: u.tier === 'Elite' ? 'var(--accent)' : 'var(--fg)' }}>{u.tier}</span></td>
                         <td style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(u.created_at).toLocaleDateString()}</td>
                         <td><span className={`admin-status ${u.kyc_status}`}>{u.kyc_status}</span></td>
-                        <td><span className={`admin-status active`}>Active</span></td>
+                        <td>
+                          <span className={`admin-status ${u.is_blocked ? 'rejected' : 'active'}`}>
+                            {u.is_blocked ? 'Blocked' : 'Active'}
+                          </span>
+                        </td>
                         <td style={{ textAlign: 'right' }}>
                           <button className="admin-action-btn" style={{ marginRight: 12 }}><Eye size={14} /></button>
-                          <button className="admin-action-btn danger"><Ban size={14} /></button>
+                          {u.is_blocked ? (
+                            <button 
+                              className="admin-action-btn" 
+                              style={{ background: 'var(--success)', color: 'white' }}
+                              onClick={() => handleToggleBlock(u.id, false)}
+                              title="Unblock User"
+                            >
+                              <CheckCircle2 size={14} />
+                            </button>
+                          ) : (
+                            <button 
+                              className="admin-action-btn danger" 
+                              onClick={() => handleToggleBlock(u.id, true)}
+                              title="Block User"
+                            >
+                              <Ban size={14} />
+                            </button>
+                          )}
                         </td>
                       </tr>
                     ))}

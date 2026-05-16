@@ -22,6 +22,8 @@ CREATE TABLE IF NOT EXISTS users (
     email_verification_token VARCHAR(255),
     otp VARCHAR(6),
     otp_expiry TIMESTAMP,
+    failed_attempts INTEGER DEFAULT 0,
+    is_blocked BOOLEAN DEFAULT FALSE,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -83,6 +85,8 @@ const initDb = async () => {
         await query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS otp VARCHAR(6);
             ALTER TABLE users ADD COLUMN IF NOT EXISTS otp_expiry TIMESTAMP;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
         `);
 
         // Seed default packages if empty

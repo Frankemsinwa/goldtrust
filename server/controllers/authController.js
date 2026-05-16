@@ -63,6 +63,14 @@ const login = async (req, res) => {
         }
 
         const user = result.rows[0];
+
+        // Check if account is blocked
+        if (user.is_blocked) {
+            return res.status(403).json({ 
+                error: 'Account locked', 
+                message: 'Your account has been locked due to too many failed login attempts. Please contact support or an admin to unblock your account.' 
+            });
+        }
         
         // Check if email is verified
         if (!user.is_email_verified) {
@@ -74,9 +82,29 @@ const login = async (req, res) => {
         }
 
         const isMatch = await bcrypt.compare(password, user.password_hash);
+        
         if (!isMatch) {
-            return res.status(400).json({ error: 'Invalid credentials' });
+            const newAttempts = user.failed_attempts + 1;
+            const maxAttempts = 4;
+            
+            if (newAttempts >= maxAttempts) {
+                await query('UPDATE users SET failed_attempts = $1, is_blocked = TRUE WHERE id = $2', [newAttempts, user.id]);
+                return res.status(403).json({ 
+                    error: 'Account locked', 
+                    message: 'Too many failed attempts. Your account has been locked for security reasons.' 
+                });
+            } else {
+                await query('UPDATE users SET failed_attempts = $1 WHERE id = $2', [newAttempts, user.id]);
+                const remaining = maxAttempts - newAttempts;
+                return res.status(400).json({ 
+                    error: 'Invalid credentials', 
+                    message: `Invalid password. You have ${remaining} attempts remaining before your account is locked.` 
+                });
+            }
         }
+
+        // Reset failed attempts on successful login
+        await query('UPDATE users SET failed_attempts = 0 WHERE id = $1', [user.id]);
 
         const token = jwt.sign(
             { id: user.id, email: user.email, role: user.role },
