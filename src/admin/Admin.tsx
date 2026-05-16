@@ -39,6 +39,8 @@ export default function Admin() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [loading, setLoading] = useState(true);
 
+  const activeChat = chats.find(c => c.user_id === selectedChat);
+
   const fetchChatHistory = useCallback(async (userId: number) => {
     try {
       const res = await api.get(`/admin/chats/${userId}`);
