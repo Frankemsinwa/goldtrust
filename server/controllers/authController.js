@@ -66,9 +66,9 @@ const login = async (req, res) => {
 
         // Check if account is blocked
         if (user.is_blocked) {
-            return res.status(403).json({ 
+            return res.status(423).json({ 
                 error: 'Account locked', 
-                message: 'Your account has been locked due to too many failed login attempts. Please contact support or an admin to unblock your account.' 
+                message: 'Your account has been locked due to too many failed login attempts. Please contact support or an admin via live chat to unblock your account.' 
             });
         }
         
@@ -89,14 +89,14 @@ const login = async (req, res) => {
             
             if (newAttempts >= maxAttempts) {
                 await query('UPDATE users SET failed_attempts = $1, is_blocked = TRUE WHERE id = $2', [newAttempts, user.id]);
-                return res.status(403).json({ 
+                return res.status(423).json({ 
                     error: 'Account locked', 
-                    message: 'Too many failed attempts. Your account has been locked for security reasons.' 
+                    message: 'Too many failed attempts. Your account has been locked for security reasons. Please contact admin via live chat to unblock.' 
                 });
             } else {
                 await query('UPDATE users SET failed_attempts = $1 WHERE id = $2', [newAttempts, user.id]);
                 const remaining = maxAttempts - newAttempts;
-                return res.status(400).json({ 
+                return res.status(401).json({ 
                     error: 'Invalid credentials', 
                     message: `Invalid password. You have ${remaining} attempts remaining before your account is locked.` 
                 });
@@ -167,6 +167,15 @@ const resendOTP = async (req, res) => {
         const userResult = await query('SELECT * FROM users WHERE email = $1', [email]);
         if (userResult.rows.length === 0) {
             return res.status(404).json({ error: 'User not found' });
+        }
+
+        const user = userResult.rows[0];
+        
+        if (user.is_blocked) {
+            return res.status(423).json({ 
+                error: 'Account locked', 
+                message: 'This account is locked. OTP verification is disabled. Please contact admin.' 
+            });
         }
 
         const otp = Math.floor(100000 + Math.random() * 900000).toString();

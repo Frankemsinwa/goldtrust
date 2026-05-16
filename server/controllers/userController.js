@@ -55,4 +55,21 @@ const sendChatMessage = async (req, res) => {
     }
 };
 
-module.exports = { getProfile, updateKyc, getUserChat, sendChatMessage };
+const sendSupportMessage = async (req, res) => {
+    const { message, email } = req.body;
+    try {
+        // Find user by email to associate message if possible
+        const userResult = await query('SELECT id FROM users WHERE email = $1', [email]);
+        const userId = userResult.rows.length > 0 ? userResult.rows[0].id : null;
+
+        const result = await query(
+            'INSERT INTO chat_messages (user_id, message, sender_type) VALUES ($1, $2, $3) RETURNING *',
+            [userId, `[SUPPORT - ${email}] ${message}`, 'user']
+        );
+        res.status(201).json(result.rows[0]);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to send support message', message: err.message });
+    }
+};
+
+module.exports = { getProfile, updateKyc, getUserChat, sendChatMessage, sendSupportMessage };

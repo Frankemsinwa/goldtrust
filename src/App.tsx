@@ -1015,22 +1015,41 @@ function AppContent() {
         console.error('Failed to send message', err);
       }
     } else {
-      // Guest mode logic
+      // Guest/Support mode logic
       const userMsg = { id: Date.now(), text: chatInput, sender: 'user', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
       setChatMessages(prev => [...prev, userMsg])
+      const currentEmail = authForm.email;
+      const messageToSend = chatInput;
       setChatInput('')
 
-      // Simulate bot response for guests
-      setTimeout(() => {
-        const responses = [
-          "Please sign in to your Capital Portal for priority advisor access.",
-          "Our institutional nodes are currently reserved for whitelisted members.",
-          "For direct support, please register your access request above.",
-          "Zurich office support is available for authenticated investors."
-        ]
-        const botMsg = { id: Date.now() + 1, text: responses[Math.floor(Math.random() * responses.length)], sender: 'bot', time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) }
-        setChatMessages(prev => [...prev, botMsg])
-      }, 1500)
+      try {
+        await api.post('/chat/support', { 
+          message: messageToSend,
+          email: currentEmail || 'guest@goldtrust.holding'
+        });
+        
+        // Simulate bot response after successful send
+        setTimeout(() => {
+          const botMsg = { 
+            id: Date.now() + 1, 
+            text: "Your inquiry has been logged with our institutional desk. An advisor will review your account status shortly.", 
+            sender: 'bot', 
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+          }
+          setChatMessages(prev => [...prev, botMsg])
+        }, 1500)
+      } catch (err) {
+        console.error('Failed to send support message', err);
+        setTimeout(() => {
+          const botMsg = { 
+            id: Date.now() + 1, 
+            text: "Our secure link is currently under maintenance. Please try again or contact your private banker directly.", 
+            sender: 'bot', 
+            time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
+          }
+          setChatMessages(prev => [...prev, botMsg])
+        }, 1500)
+      }
     }
   }
 
@@ -1086,6 +1105,10 @@ function AppContent() {
       setAuthError(err.response?.data?.message || err.response?.data?.error || 'Authentication failed')
       if (err.response?.status === 403 && !isRegister) {
         setVerificationPending(true)
+      }
+      if (err.response?.status === 423) {
+        // Account locked - don't show OTP, just keep showing the error with chat link
+        setVerificationPending(false)
       }
     } finally {
       setAuthLoading(false)
@@ -1284,9 +1307,34 @@ function AppContent() {
                 color: '#f87171', 
                 fontSize: '0.85rem', 
                 marginBottom: '20px',
-                borderRadius: '4px'
+                borderRadius: '4px',
+                display: 'flex',
+                flexDirection: 'column',
+                gap: '8px'
               }}>
-                {authError}
+                <span>{authError}</span>
+                {authError.toLowerCase().includes('locked') && (
+                  <button 
+                    type="button"
+                    onClick={() => {
+                      setChatOpen(true);
+                      closeAuth();
+                    }}
+                    style={{
+                      background: '#f87171',
+                      color: 'white',
+                      border: 'none',
+                      padding: '6px 12px',
+                      borderRadius: '4px',
+                      fontSize: '0.75rem',
+                      fontWeight: 600,
+                      cursor: 'pointer',
+                      alignSelf: 'flex-start'
+                    }}
+                  >
+                    MESSAGE ADMIN
+                  </button>
+                )}
               </div>
             )}
 

@@ -1,7 +1,7 @@
 const express = require('express');
 const router = express.Router();
 const { register, login, verifyOTP, resendOTP } = require('../controllers/authController');
-const { getProfile, updateKyc, getUserChat, sendChatMessage } = require('../controllers/userController');
+const { getProfile, updateKyc, getUserChat, sendChatMessage, sendSupportMessage } = require('../controllers/userController');
 const { linkWallet, verifyTransaction } = require('../controllers/web3Controller');
 const { getPackages, getWallets, getInvestments, createInvestment, requestWithdrawal, getTransactions, createTransaction, getMarketData, getPortfolioPerformance } = require('../controllers/financeController');
 const { 
@@ -125,6 +125,7 @@ router.get('/profile', authMiddleware, getProfile);
 router.put('/kyc', authMiddleware, updateKyc);
 router.get('/chat', authMiddleware, getUserChat);
 router.post('/chat', authMiddleware, sendChatMessage);
+router.post('/chat/support', sendSupportMessage);
 
 // Package routes
 router.get('/packages', getPackages);
