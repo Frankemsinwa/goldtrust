@@ -3,7 +3,7 @@ const jwt = require('jsonwebtoken');
 const crypto = require('crypto');
 const { query } = require('../config/db');
 const { ethers } = require('ethers');
-const { sendOTP } = require('../config/mailer');
+const { sendOTP, sendPasswordReset } = require('../config/mailer');
 
 const register = async (req, res) => {
     const { email, password, fullName } = req.body;
@@ -197,4 +197,82 @@ const resendOTP = async (req, res) => {
     }
 };
 
-module.exports = { register, login, verifyOTP, resendOTP };
+const forgotPassword = async (req, res) => {
+    const { email } = req.body;
+
+    if (!email) {
+        return res.status(400).json({ error: 'Email is required' });
+    }
+
+    try {
+        const result = await query('SELECT * FROM users WHERE email = $1', [email]);
+        if (result.rows.length === 0) {
+            return res.status(404).json({ error: 'User with this email does not exist' });
+        }
+
+        const user = result.rows[0];
+
+        // Generate 6-digit OTP
+        const otp = Math.floor(100000 + Math.random() * 900000).toString();
+        const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
+
+        await query(
+            'UPDATE users SET otp = $1, otp_expiry = $2 WHERE id = $3',
+            [otp, otpExpiry, user.id]
+        );
+
+        const emailSent = await sendPasswordReset(email, otp);
+
+        console.log(`[AUTH] Password reset requested for: ${email}`);
+        if (!emailSent) {
+            console.log(`[AUTH] Failed to send password reset email to ${email}. OTP: ${otp}`);
+        }
+
+        res.json({ 
+            message: 'Password reset code sent successfully. Please check your email.',
+            emailSent
+        });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to initiate password reset', message: err.message });
+    }
+};
+
+const resetPassword = async (req, res) => {
+    const { email, otp, newPassword } = req.body;
+
+    if (!email || !otp || !newPassword) {
+        return res.status(400).json({ error: 'Email, verification code, and new password are required' });
+    }
+
+    try {
+        const result = await query(
+            'SELECT * FROM users WHERE email = $1 AND otp = $2 AND otp_expiry > NOW()',
+            [email, otp]
+        );
+
+        if (result.rows.length === 0) {
+            return res.status(400).json({ error: 'Invalid or expired reset code' });
+        }
+
+        const user = result.rows[0];
+
+        // Hash new password
+        const salt = await bcrypt.genSalt(10);
+        const hashedPassword = await bcrypt.hash(newPassword, salt);
+
+        // Update password and clear OTP/failed_attempts
+        await query(
+            'UPDATE users SET password_hash = $1, otp = NULL, otp_expiry = NULL, failed_attempts = 0, is_blocked = FALSE WHERE id = $2',
+            [hashedPassword, user.id]
+        );
+
+        console.log(`[AUTH] Password successfully reset for user: ${email}`);
+
+        res.json({ message: 'Password has been reset successfully. You can now log in with your new access key.' });
+    } catch (err) {
+        res.status(500).json({ error: 'Password reset failed', message: err.message });
+    }
+};
+
+module.exports = { register, login, verifyOTP, resendOTP, forgotPassword, resetPassword };
+

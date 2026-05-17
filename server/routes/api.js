@@ -1,6 +1,6 @@
 const express = require('express');
 const router = express.Router();
-const { register, login, verifyOTP, resendOTP } = require('../controllers/authController');
+const { register, login, verifyOTP, resendOTP, forgotPassword, resetPassword } = require('../controllers/authController');
 const { getProfile, updateKyc, getUserChat, sendChatMessage, sendSupportMessage } = require('../controllers/userController');
 const { linkWallet, verifyTransaction } = require('../controllers/web3Controller');
 const { getPackages, getWallets, getInvestments, createInvestment, requestWithdrawal, getTransactions, createTransaction, getMarketData, getPortfolioPerformance } = require('../controllers/financeController');
@@ -100,6 +100,46 @@ authRouter.post('/verify-otp', verifyOTP);
  *       200: {description: OTP resent}
  */
 authRouter.post('/resend-otp', resendOTP);
+
+/**
+ * @swagger
+ * /api/auth/forgot-password:
+ *   post:
+ *     summary: Initiate password reset
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email: {type: string}
+ *     responses:
+ *       200: {description: Reset code sent}
+ */
+authRouter.post('/forgot-password', forgotPassword);
+
+/**
+ * @swagger
+ * /api/auth/reset-password:
+ *   post:
+ *     summary: Reset password with OTP code
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               email: {type: string}
+ *               otp: {type: string}
+ *               newPassword: {type: string}
+ *     responses:
+ *       200: {description: Password reset successful}
+ */
+authRouter.post('/reset-password', resetPassword);
 
 router.use('/auth', authRouter);
 

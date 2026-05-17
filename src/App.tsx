@@ -19,7 +19,7 @@ const INVESTORS = [
 ]
 
 const ABOUT_STATS = [
-  { label: 'Founded', value: '2026' },
+  { label: 'Founded', value: '2021' },
   { label: 'Global Offices', value: '07' },
   { label: 'Security Audits', value: 'Quarterly' },
   { label: 'Client Retention', value: '99.2%' },
@@ -799,20 +799,16 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
       <section className="vault-section vault-section-grid" id="about" style={{ borderTop: '0.5px solid var(--border)' }}>
         <div className="vault-about-split">
           <div className="vault-about-text reveal">
-            <span className="vault-label">What We Do</span>
-            <h2 className="vault-section-title">Simple Investing for Everyone.</h2>
+            <span className="vault-label">Our Journey</span>
+            <h2 className="vault-section-title">A Legacy Reborn.</h2>
             <p className="vault-section-desc">
-              GoldTrust was built to make investing simple. We help you invest in crypto, 
-              the stock market, and gold mining all in one place.
+              GoldTrust represents the evolution and triumphant rebirth of our original vision, <strong>Lazerpay</strong>. Founded in 2021 as a highly promising, legitimate Nigerian crypto-payment startup, Lazerpay built a stellar reputation by providing genuine, high-performance blockchain payment rails.
             </p>
             <blockquote className="vault-about-quote">
-              "We believe that growing your money should be easy and safe for everyone, 
-              no matter where you are starting from."
+              "Our drive to build resilient, institutional-grade financial infrastructure never wavered, even during the hardest times."
             </blockquote>
             <p className="vault-section-desc" style={{ marginTop: 24 }}>
-              Founded in 2026, we have helped thousands of people grow their money. 
-              We use the best security to keep your investments safe while you watch 
-              them grow.
+              Although operations were paused in 2023 after failing to secure the venture funding required to scale, we have restructured, fully capitalized, and returned stronger than ever. Today, under the GoldTrust banner, we bridge physical gold, stocks, and crypto into one premium wealth platform, keeping the spirit of innovation alive.
             </p>
           </div>
 
@@ -959,6 +955,7 @@ function AppContent() {
   const [authLoading, setAuthLoading] = useState(false)
   const [authError, setAuthError] = useState('')
   const [verificationPending, setVerificationPending] = useState(false)
+  const [forgotMode, setForgotMode] = useState<'none' | 'request' | 'reset'>('none')
   const [otp, setOtp] = useState(['', '', '', '', '', ''])
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
   const chatEndRef = useRef<HTMLDivElement>(null)
@@ -1062,12 +1059,16 @@ function AppContent() {
 
   const closeAuth = useCallback(() => {
     setShowAuth(false)
-    setTimeout(() => setIsRegister(false), 400)
+    setTimeout(() => {
+      setIsRegister(false)
+      setForgotMode('none')
+    }, 400)
   }, [])
 
   const toggleAuthMode = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     setIsRegister((v) => !v)
+    setForgotMode('none')
     setAuthError('')
     setVerificationPending(false)
     setOtp(['', '', '', '', '', ''])
@@ -1164,6 +1165,65 @@ function AppContent() {
       // Could show a "Code resent" success message here
     } catch (err: any) {
       setAuthError(err.response?.data?.error || 'Failed to resend code')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleForgotPasswordRequest = async (e: React.FormEvent) => {
+    e.preventDefault()
+    if (!authForm.email) return
+
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      await api.post('/auth/forgot-password', { email: authForm.email })
+      setForgotMode('reset')
+      setOtp(['', '', '', '', '', ''])
+      setAuthError('')
+    } catch (err: any) {
+      setAuthError(err.response?.data?.error || 'Failed to send reset code')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleForgotPasswordRequestDirect = async () => {
+    if (!authForm.email) return
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      await api.post('/auth/forgot-password', { email: authForm.email })
+      setAuthError('Reset code sent successfully to ' + authForm.email)
+    } catch (err: any) {
+      setAuthError(err.response?.data?.error || 'Failed to resend code')
+    } finally {
+      setAuthLoading(false)
+    }
+  }
+
+  const handleForgotPasswordReset = async (e: React.FormEvent) => {
+    e.preventDefault()
+    const otpString = otp.join('')
+    if (otpString.length !== 6 || !authForm.password) return
+
+    setAuthLoading(true)
+    setAuthError('')
+    try {
+      await api.post('/auth/reset-password', {
+        email: authForm.email,
+        otp: otpString,
+        newPassword: authForm.password
+      })
+      setForgotMode('none')
+      setOtp(['', '', '', '', '', ''])
+      setAuthForm({
+        ...authForm,
+        password: '' // Clear password field for login
+      })
+      setAuthError('Access Key reset successful. You may now log in.')
+    } catch (err: any) {
+      setAuthError(err.response?.data?.error || 'Password reset failed')
     } finally {
       setAuthLoading(false)
     }
@@ -1298,7 +1358,15 @@ function AppContent() {
             <span>GOLDTRUST</span>
           </div>
           
-          <form onSubmit={verificationPending ? handleVerifyOTP : handleAuthSubmit}>
+          <form onSubmit={
+            forgotMode === 'request' 
+              ? handleForgotPasswordRequest 
+              : forgotMode === 'reset' 
+              ? handleForgotPasswordReset 
+              : verificationPending 
+              ? handleVerifyOTP 
+              : handleAuthSubmit
+          }>
             {authError && (
               <div style={{ 
                 padding: '12px', 
@@ -1338,7 +1406,122 @@ function AppContent() {
               </div>
             )}
 
-            {verificationPending ? (
+            {forgotMode === 'request' ? (
+              <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '8px', fontWeight: 500 }}>Reset Password</h3>
+                <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '24px' }}>
+                  Enter your email address and we'll send you a 6-digit security code to reset your password.
+                </p>
+                <div className="vault-input-group" style={{ textAlign: 'left' }}>
+                  <label className="vault-input-label">Identity / Email</label>
+                  <input 
+                    type="email" 
+                    className="vault-input" 
+                    placeholder="investor@private.vault" 
+                    required 
+                    value={authForm.email}
+                    onChange={e => setAuthForm({...authForm, email: e.target.value})}
+                  />
+                </div>
+                <button 
+                  type="submit" 
+                  className="vault-btn vault-btn-primary" 
+                  style={{ width: '100%', marginTop: '24px', opacity: authLoading ? 0.7 : 1 }}
+                  disabled={authLoading}
+                >
+                  {authLoading ? 'Sending...' : 'Send Reset Code'}
+                </button>
+              </div>
+            ) : forgotMode === 'reset' ? (
+              <div style={{ textAlign: 'center', padding: '10px 0' }}>
+                <h3 style={{ fontSize: '1.2rem', marginBottom: '8px', fontWeight: 500 }}>Reset Password</h3>
+                <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '32px' }}>
+                  Enter the 6-digit security code sent to <span style={{ color: 'var(--fg)' }}>{authForm.email}</span> and your new access key.
+                </p>
+                
+                <div style={{ display: 'flex', justifyContent: 'center', gap: '8px', marginBottom: '24px' }}>
+                  {otp.map((digit, i) => (
+                    <input
+                      key={i}
+                      ref={el => { if (el) otpRefs.current[i] = el; }}
+                      type="text"
+                      maxLength={1}
+                      value={digit}
+                      onChange={e => handleOtpChange(i, e.target.value)}
+                      onKeyDown={e => handleOtpKeyDown(i, e)}
+                      style={{
+                        width: '45px',
+                        height: '55px',
+                        textAlign: 'center',
+                        fontSize: '1.5rem',
+                        fontFamily: 'var(--font-mono)',
+                        background: 'rgba(255, 255, 255, 0.03)',
+                        border: '1px solid var(--border)',
+                        color: 'var(--accent)',
+                        borderRadius: '4px',
+                        outline: 'none',
+                        transition: 'border-color 0.2s ease'
+                      }}
+                      onFocus={e => e.target.style.borderColor = 'var(--accent)'}
+                      onBlur={e => e.target.style.borderColor = 'var(--border)'}
+                    />
+                  ))}
+                </div>
+
+                <div className="vault-input-group" style={{ textAlign: 'left' }}>
+                  <label className="vault-input-label">New Access Key</label>
+                  <div className="vault-password-wrapper">
+                    <input 
+                      type={showPassword ? "text" : "password"} 
+                      className="vault-input" 
+                      placeholder="••••••••••••" 
+                      required 
+                      value={authForm.password}
+                      onChange={e => setAuthForm({...authForm, password: e.target.value})}
+                    />
+                    <button 
+                      type="button" 
+                      className="vault-password-toggle"
+                      onClick={() => setShowPassword(!showPassword)}
+                      aria-label={showPassword ? "Hide password" : "Show password"}
+                    >
+                      {showPassword ? (
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M17.94 17.94A10.07 10.07 0 0 1 12 20c-7 0-11-8-11-8a18.45 18.45 0 0 1 5.06-5.94M9.9 4.24A9.12 9.12 0 0 1 12 4c7 0 11 8 11 8a18.5 18.5 0 0 1-2.16 3.19m-6.72-1.07a3 3 0 1 1-4.24-4.24" />
+                          <line x1="1" y1="1" x2="23" y2="23" />
+                        </svg>
+                      ) : (
+                        <svg viewBox="0 0 24 24" width="18" height="18" fill="none" stroke="currentColor" strokeWidth="1.5">
+                          <path d="M1 12s4-8 11-8 11 8 11 8-4 8-11 8-11-8-11-8z" />
+                          <circle cx="12" cy="12" r="3" />
+                        </svg>
+                      )}
+                    </button>
+                  </div>
+                </div>
+
+                <button 
+                  type="submit"
+                  className="vault-btn vault-btn-primary" 
+                  style={{ width: '100%', marginBottom: '20px', marginTop: '24px' }}
+                  disabled={authLoading || otp.join('').length !== 6}
+                >
+                  {authLoading ? 'Resetting...' : 'Reset Access Key'}
+                </button>
+                
+                <div style={{ fontSize: '0.85rem', color: 'var(--muted)' }}>
+                  Didn't receive the code?{' '}
+                  <button 
+                    type="button" 
+                    onClick={handleForgotPasswordRequestDirect}
+                    style={{ background: 'none', border: 'none', color: 'var(--accent)', cursor: 'pointer', padding: 0, font: 'inherit', textDecoration: 'underline' }}
+                    disabled={authLoading}
+                  >
+                    Resend Code
+                  </button>
+                </div>
+              </div>
+            ) : verificationPending ? (
               <div style={{ textAlign: 'center', padding: '10px 0' }}>
                 <h3 style={{ fontSize: '1.2rem', marginBottom: '8px', fontWeight: 500 }}>Secure Verification</h3>
                 <p style={{ color: 'var(--muted)', fontSize: '0.85rem', marginBottom: '32px' }}>
@@ -1435,7 +1618,22 @@ function AppContent() {
                   </select>
                 </div>
                 <div className="vault-input-group">
-                  <label className="vault-input-label">{isRegister ? 'New Access Key' : 'Access Key'}</label>
+                  <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                    <label className="vault-input-label">{isRegister ? 'New Access Key' : 'Access Key'}</label>
+                    {!isRegister && (
+                      <a 
+                        href="#" 
+                        onClick={(e) => {
+                          e.preventDefault();
+                          setForgotMode('request');
+                          setAuthError('');
+                        }}
+                        style={{ fontSize: '0.75rem', color: 'var(--accent)', textDecoration: 'underline', marginBottom: '6px' }}
+                      >
+                        Forgot Password?
+                      </a>
+                    )}
+                  </div>
                   <div className="vault-password-wrapper">
                     <input 
                       type={showPassword ? "text" : "password"} 
@@ -1479,10 +1677,23 @@ function AppContent() {
           </form>
 
           <div className="vault-auth-footer">
-            {isRegister ? 'Already an investor?' : 'New to GoldTrust?'}
-            <a href="#" className="vault-auth-link" onClick={toggleAuthMode}>
-              {isRegister ? 'Sign In' : 'Request Access'}
-            </a>
+            {forgotMode !== 'none' ? (
+              <a href="#" className="vault-auth-link" onClick={(e) => {
+                e.preventDefault();
+                setForgotMode('none');
+                setAuthError('');
+                setOtp(['', '', '', '', '', '']);
+              }}>
+                Back to Sign In
+              </a>
+            ) : (
+              <>
+                {isRegister ? 'Already an investor?' : 'New to GoldTrust?'}
+                <a href="#" className="vault-auth-link" onClick={toggleAuthMode}>
+                  {isRegister ? 'Sign In' : 'Request Access'}
+                </a>
+              </>
+            )}
           </div>
         </div>
       </div>

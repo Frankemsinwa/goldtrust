@@ -98,4 +98,40 @@ const sendInvestmentConfirmation = async (email, fullName, packageName, amount, 
     }
 };
 
-module.exports = { sendOTP, sendInvestmentConfirmation };
+const sendPasswordReset = async (email, otp) => {
+    const mailOptions = {
+        from: `"GoldTrust Support" <${process.env.EMAIL_USER}>`,
+        to: email,
+        subject: 'Reset Your Password - GoldTrust',
+        html: `
+            <div style="font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #e0e0e0; border-radius: 10px;">
+                <div style="text-align: center; margin-bottom: 30px;">
+                    <h1 style="color: #d4af37; margin: 0;">GOLDTRUST</h1>
+                    <p style="color: #666; font-size: 14px; letter-spacing: 2px;">PREMIUM INVESTMENT PLATFORM</p>
+                </div>
+                <div style="background-color: #f9f9f9; padding: 30px; border-radius: 8px; text-align: center;">
+                    <h2 style="color: #333; margin-top: 0;">Reset Your Password</h2>
+                    <p style="color: #555; font-size: 16px;">Use the code below to reset your account password. This code will expire in 10 minutes.</p>
+                    <div style="background-color: #fff; border: 2px dashed #d4af37; padding: 20px; margin: 30px 0; display: inline-block;">
+                        <span style="font-size: 32px; font-weight: bold; letter-spacing: 10px; color: #333;">${otp}</span>
+                    </div>
+                    <p style="color: #888; font-size: 12px;">If you didn't request this code, please ignore this email.</p>
+                </div>
+                <div style="text-align: center; margin-top: 30px; color: #aaa; font-size: 12px;">
+                    &copy; ${new Date().getFullYear()} GoldTrust Assets Management. All rights reserved.
+                </div>
+            </div>
+        `,
+    };
+
+    try {
+        await transporter.sendMail(mailOptions);
+        return true;
+    } catch (error) {
+        console.error('[MAIL] Error sending Password Reset OTP:', error);
+        return false;
+    }
+};
+
+module.exports = { sendOTP, sendInvestmentConfirmation, sendPasswordReset };
+
