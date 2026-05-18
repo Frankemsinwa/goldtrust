@@ -19,7 +19,7 @@ const INVESTORS = [
 ]
 
 const ABOUT_STATS = [
-  { label: 'Founded', value: '2021' },
+  { label: 'Founded', value: '1996' },
   { label: 'Global Offices', value: '07' },
   { label: 'Security Audits', value: 'Quarterly' },
   { label: 'Client Retention', value: '99.2%' },
@@ -802,13 +802,13 @@ function LandingPage({ openAuth }: { openAuth: () => void }) {
             <span className="vault-label">Our Journey</span>
             <h2 className="vault-section-title">A Legacy Reborn.</h2>
             <p className="vault-section-desc">
-              GoldTrust represents the evolution and triumphant rebirth of our original vision, <strong>Lazerpay</strong>. Founded in 2021 as a highly promising, legitimate Nigerian crypto-payment startup, Lazerpay built a stellar reputation by providing genuine, high-performance blockchain payment rails.
+              GoldTrust represents the evolution and triumphant rebirth of our original pioneering vision, <strong>e-gold</strong>. Founded in 1996 as the world's very first successful digital gold currency, e-gold built a historic record by establishing secure, physical gold-backed transactions long before the inception of modern blockchain networks.
             </p>
             <blockquote className="vault-about-quote">
-              "Our drive to build resilient, institutional-grade financial infrastructure never wavered, even during the hardest times."
+              "Our original conviction remains unchanged: true wealth preservation requires combining the enduring value of physical gold with the frictionless agility of digital systems."
             </blockquote>
             <p className="vault-section-desc" style={{ marginTop: 24 }}>
-              Although operations were paused in 2023 after failing to secure the venture funding required to scale, we have restructured, fully capitalized, and returned stronger than ever. Today, under the GoldTrust banner, we bridge physical gold, stocks, and crypto into one premium wealth platform, keeping the spirit of innovation alive.
+              At its peak, the platform secured over five million accounts globally, processing billions in gold-backed transfers. While early web-era regulatory transitions and scaling challenges eventually led to a pause in operations, the underlying gold reserves remained fully backed and accounted for. Today, fully restructured, capitalized, and compliant, we return under the GoldTrust banner to bridge physical gold, equities, and modern cryptocurrencies into a single sovereign private wealth ecosystem.
             </p>
           </div>
 
@@ -953,6 +953,100 @@ function AppContent() {
   })
   const [showPassword, setShowPassword] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
+
+  // Draggable FAB state & handlers
+  const [fabPosition, setFabPosition] = useState({ x: 0, y: 0 })
+  const [isDragging, setIsDragging] = useState(false)
+  const dragStart = useRef({ x: 0, y: 0, startX: 0, startY: 0 })
+  const hasDragged = useRef(false)
+
+  const handleMouseDown = (e: React.MouseEvent) => {
+    if (e.button !== 0) return
+    setIsDragging(true)
+    hasDragged.current = false
+    dragStart.current = {
+      x: e.clientX,
+      y: e.clientY,
+      startX: fabPosition.x,
+      startY: fabPosition.y
+    }
+    e.preventDefault()
+  }
+
+  const handleMouseMove = useCallback((e: MouseEvent) => {
+    if (!isDragging) return
+    const dx = e.clientX - dragStart.current.x
+    const dy = e.clientY - dragStart.current.y
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      hasDragged.current = true
+    }
+    setFabPosition({
+      x: dragStart.current.startX + dx,
+      y: dragStart.current.startY + dy
+    })
+  }, [isDragging])
+
+  const handleMouseUp = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('mousemove', handleMouseMove)
+      window.addEventListener('mouseup', handleMouseUp)
+    } else {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+    return () => {
+      window.removeEventListener('mousemove', handleMouseMove)
+      window.removeEventListener('mouseup', handleMouseUp)
+    }
+  }, [isDragging, handleMouseMove, handleMouseUp])
+
+  const handleTouchStart = (e: React.TouchEvent) => {
+    const touch = e.touches[0]
+    setIsDragging(true)
+    hasDragged.current = false
+    dragStart.current = {
+      x: touch.clientX,
+      y: touch.clientY,
+      startX: fabPosition.x,
+      startY: fabPosition.y
+    }
+  }
+
+  const handleTouchMove = useCallback((e: TouchEvent) => {
+    if (!isDragging) return
+    const touch = e.touches[0]
+    const dx = touch.clientX - dragStart.current.x
+    const dy = touch.clientY - dragStart.current.y
+    if (Math.abs(dx) > 5 || Math.abs(dy) > 5) {
+      hasDragged.current = true
+    }
+    setFabPosition({
+      x: dragStart.current.startX + dx,
+      y: dragStart.current.startY + dy
+    })
+  }, [isDragging])
+
+  const handleTouchEnd = useCallback(() => {
+    setIsDragging(false)
+  }, [])
+
+  useEffect(() => {
+    if (isDragging) {
+      window.addEventListener('touchmove', handleTouchMove, { passive: false })
+      window.addEventListener('touchend', handleTouchEnd)
+    } else {
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+    return () => {
+      window.removeEventListener('touchmove', handleTouchMove)
+      window.removeEventListener('touchend', handleTouchEnd)
+    }
+  }, [isDragging, handleTouchMove, handleTouchEnd])
   const [authError, setAuthError] = useState('')
   const [verificationPending, setVerificationPending] = useState(false)
   const [forgotMode, setForgotMode] = useState<'none' | 'request' | 'reset'>('none')
@@ -1027,9 +1121,24 @@ function AppContent() {
         
         // Simulate bot response after successful send
         setTimeout(() => {
+          const options = [
+            {
+              text: "Our institutional support desk is online. For direct communication with our admin desk, please reach out to our private WhatsApp support number: +44 7346 896494"
+            },
+            {
+              text: "Please connect with our private capital advisor directly on WhatsApp for secure account management.",
+              html: "Please connect with our private capital advisor directly on WhatsApp for secure account management: <a href='https://wa.me/qr/VAYD6QXDFFJKO1' target='_blank' style='color: var(--accent); text-decoration: underline; font-weight: 600;'>Direct WhatsApp Chat</a>"
+            },
+            {
+              text: "Scan this institutional QR code to start a direct secure session with our advisor on WhatsApp.",
+              isImage: true,
+              imageUrl: "/1001987453.jpg"
+            }
+          ];
+          const chosen = options[Math.floor(Math.random() * options.length)];
           const botMsg = { 
             id: Date.now() + 1, 
-            text: "Your inquiry has been logged with our institutional desk. An advisor will review your account status shortly.", 
+            ...chosen,
             sender: 'bot', 
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
           }
@@ -1038,9 +1147,24 @@ function AppContent() {
       } catch (err) {
         console.error('Failed to send support message', err);
         setTimeout(() => {
+          const options = [
+            {
+              text: "Our messaging system experienced minor latency. Please reach out to our private support number directly via WhatsApp: +44 7346 896494"
+            },
+            {
+              text: "Secure messaging connection timed out. You may connect directly to our administrative team on WhatsApp.",
+              html: "Secure messaging connection timed out. You may connect directly to our administrative team on WhatsApp: <a href='https://wa.me/qr/VAYD6QXDFFJKO1' target='_blank' style='color: var(--accent); text-decoration: underline; font-weight: 600;'>Open WhatsApp Support</a>"
+            },
+            {
+              text: "Please scan our secure QR code to reach our private bank support line via WhatsApp.",
+              isImage: true,
+              imageUrl: "/1001987453.jpg"
+            }
+          ];
+          const chosen = options[Math.floor(Math.random() * options.length)];
           const botMsg = { 
             id: Date.now() + 1, 
-            text: "Our secure link is currently under maintenance. Please try again or contact your private banker directly.", 
+            ...chosen,
             sender: 'bot', 
             time: new Date().toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }) 
           }
@@ -1317,8 +1441,19 @@ function AppContent() {
 
       {/* ═══════════ FOOTER ═══════════ */}
       <footer className="vault-footer">
-        <div className="vault-footer-copy">
-          &copy; 2025 GOLDTRUST IMPERIAL HOLDINGS LIMITED. ALL RIGHTS RESERVED.
+        <div className="vault-footer-row">
+          <div className="vault-footer-copy">
+            &copy; 2025 GOLDTRUST IMPERIAL HOLDINGS LIMITED. ALL RIGHTS RESERVED.
+          </div>
+          <div className="vault-footer-contact-group">
+            <span>Secure Vault Desk: <strong style={{ color: 'var(--fg)', fontFamily: 'var(--font-mono)' }}>+44 7346 896494</strong></span>
+            <a href="https://wa.me/qr/VAYD6QXDFFJKO1" target="_blank" rel="noopener noreferrer" className="vault-footer-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--accent)', textDecoration: 'none', transition: 'color 0.15s ease' }}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="currentColor">
+                <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 001.37 5.054L2 22l5.077-1.331a9.923 9.923 0 004.93 1.315h.005c5.505 0 9.988-4.478 9.99-9.984 0-2.667-1.037-5.176-2.924-7.062C17.191 3.053 14.682 2.001 12.012 2zm6.39 14.159c-.282.793-1.397 1.455-1.921 1.549-.472.085-1.089.158-3.176-.71-2.667-1.111-4.364-3.824-4.498-4.002-.132-.177-1.077-1.431-1.077-2.729 0-1.298.674-1.936.915-2.195.241-.259.527-.324.703-.324.176 0 .352.001.506.008.16.007.375-.061.587.452.219.53.748 1.821.813 1.953.065.132.109.287.021.462-.088.175-.132.287-.264.441-.132.155-.278.347-.396.466-.132.132-.27.276-.117.538.153.262.68 1.118 1.456 1.809.999.892 1.841 1.168 2.105 1.299.264.131.417.109.571-.066.154-.175.66-.766.837-1.028.176-.263.352-.219.594-.131.242.088 1.539.726 1.803.858.264.131.44.197.506.307.066.11.066.634-.216 1.427z"/>
+              </svg>
+              Direct WhatsApp Support
+            </a>
+          </div>
         </div>
         <div className="vault-footer-links">
           <a href="#" className="vault-footer-link">Privacy Policy</a>
@@ -1711,7 +1846,18 @@ function AppContent() {
           <div className="vault-chat-messages">
             {chatMessages.map(msg => (
               <div key={msg.id} className={`vault-chat-msg ${msg.sender}`}>
-                <div className="vault-chat-msg-content">{msg.text}</div>
+                <div className="vault-chat-msg-content">
+                  {msg.isImage ? (
+                    <div style={{ textAlign: 'center' }}>
+                      <p style={{ margin: '0 0 8px 0', fontSize: '13px' }}>{msg.text}</p>
+                      <img src={msg.imageUrl} alt="WhatsApp QR" style={{ maxWidth: '160px', width: '100%', height: 'auto', borderRadius: '4px', border: '1px solid var(--border)', display: 'block', margin: '0 auto' }} />
+                    </div>
+                  ) : msg.html ? (
+                    <span dangerouslySetInnerHTML={{ __html: msg.html }} />
+                  ) : (
+                    msg.text
+                  )}
+                </div>
                 <div className="vault-chat-msg-time">{msg.time}</div>
               </div>
             ))}
@@ -1736,7 +1882,25 @@ function AppContent() {
       </div>
 
       {!chatOpen && (
-        <button className="vault-chat-trigger" onClick={() => setChatOpen(true)}>
+        <button 
+          className="vault-chat-trigger" 
+          style={{
+            transform: `translate(${fabPosition.x}px, ${fabPosition.y}px)`,
+            cursor: isDragging ? 'grabbing' : 'grab',
+            transition: isDragging ? 'none' : 'transform 0.2s ease',
+            touchAction: 'none'
+          }}
+          onMouseDown={handleMouseDown}
+          onTouchStart={handleTouchStart}
+          onClick={(e) => {
+            if (hasDragged.current) {
+              e.preventDefault();
+              e.stopPropagation();
+            } else {
+              setChatOpen(true);
+            }
+          }}
+        >
           <svg viewBox="0 0 24 24" width="24" height="24" fill="none" stroke="currentColor" strokeWidth="1.5">
             <path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z" />
           </svg>

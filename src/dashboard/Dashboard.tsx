@@ -1014,36 +1014,6 @@ export default function Dashboard() {
                     <div 
                       className="vault-package-item" 
                       style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px' }}
-                      onClick={() => { setDepositMethod('wise'); setDepositStep('amount'); }}
-                    >
-                      <div style={{ background: 'rgba(0,185,255,0.1)', padding: '10px', borderRadius: '4px' }}>
-                        <Send size={20} color="#00b9ff" />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 500 }}>Wise Transfer</div>
-                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Fast global transfers with minimal fees.</div>
-                      </div>
-                      <ArrowRight size={14} color="var(--muted)" />
-                    </div>
-
-                    <div 
-                      className="vault-package-item" 
-                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px' }}
-                      onClick={() => { setDepositMethod('bank'); setDepositStep('amount'); }}
-                    >
-                      <div style={{ background: 'rgba(212,175,55,0.1)', padding: '10px', borderRadius: '4px' }}>
-                        <Banknote size={20} color="var(--accent)" />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 500 }}>Bank Wire / SWIFT</div>
-                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Institutional-grade bank to bank transfers.</div>
-                      </div>
-                      <ArrowRight size={14} color="var(--muted)" />
-                    </div>
-
-                    <div 
-                      className="vault-package-item" 
-                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px' }}
                       onClick={() => { setDepositMethod('crypto'); setDepositStep('amount'); }}
                     >
                       <div style={{ background: 'rgba(243,186,47,0.1)', padding: '10px', borderRadius: '4px' }}>
@@ -1054,19 +1024,6 @@ export default function Dashboard() {
                         <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Transfer BTC/USDT directly to platform vaults.</div>
                       </div>
                       <ArrowRight size={14} color="var(--muted)" />
-                    </div>
-
-                    <div 
-                      className="vault-package-item" 
-                      style={{ display: 'flex', alignItems: 'center', gap: '16px', padding: '16px', opacity: 0.6, cursor: 'not-allowed' }}
-                    >
-                      <div style={{ background: 'rgba(255,255,255,0.05)', padding: '10px', borderRadius: '4px' }}>
-                        <CreditCard size={20} color="var(--muted)" />
-                      </div>
-                      <div style={{ flex: 1 }}>
-                        <div style={{ fontWeight: 500 }}>Credit / Debit Card</div>
-                        <div style={{ fontSize: '11px', color: 'var(--muted)' }}>Currently undergoing maintenance.</div>
-                      </div>
                     </div>
                   </div>
                 </div>
