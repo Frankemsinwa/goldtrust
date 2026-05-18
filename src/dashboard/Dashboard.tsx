@@ -68,6 +68,7 @@ export default function Dashboard() {
   const [depositAmount, setDepositAmount] = useState('');
   const [depositProof, setDepositProof] = useState('');
   const [isCopied, setIsCopied] = useState(false);
+  const [selectedCrypto, setSelectedCrypto] = useState<'btc' | 'eth' | 'sol' | 'usdt'>('btc');
 
   // Chat State
   const [chatOpen, setChatOpen] = useState(false);
@@ -172,10 +173,14 @@ export default function Dashboard() {
     const savedMethod = localStorage.getItem('pendingDepositMethod');
     const savedAmount = localStorage.getItem('pendingDepositAmount');
     const savedStep = localStorage.getItem('pendingDepositStep');
+    const savedCrypto = localStorage.getItem('pendingDepositCrypto');
     
     if (savedMethod && savedAmount && savedStep && savedStep !== 'idle' && savedStep !== 'success') {
       setDepositMethod(savedMethod as any);
       setDepositAmount(savedAmount);
+      if (savedCrypto) {
+        setSelectedCrypto(savedCrypto as any);
+      }
       // We don't auto-open the modal, just show the FAB
     }
 
@@ -188,12 +193,14 @@ export default function Dashboard() {
       localStorage.setItem('pendingDepositMethod', depositMethod || '');
       localStorage.setItem('pendingDepositAmount', depositAmount);
       localStorage.setItem('pendingDepositStep', depositStep);
+      localStorage.setItem('pendingDepositCrypto', selectedCrypto);
     } else if (depositStep === 'success' || depositStep === 'idle') {
       localStorage.removeItem('pendingDepositMethod');
       localStorage.removeItem('pendingDepositAmount');
       localStorage.removeItem('pendingDepositStep');
+      localStorage.removeItem('pendingDepositCrypto');
     }
-  }, [depositStep, depositMethod, depositAmount]);
+  }, [depositStep, depositMethod, depositAmount, selectedCrypto]);
 
   // Auto-sync linked wallet with backend when address changes
   useEffect(() => {
@@ -364,9 +371,11 @@ export default function Dashboard() {
     setDepositMethod(null);
     setDepositAmount('');
     setDepositProof('');
+    setSelectedCrypto('btc');
     localStorage.removeItem('pendingDepositMethod');
     localStorage.removeItem('pendingDepositAmount');
     localStorage.removeItem('pendingDepositStep');
+    localStorage.removeItem('pendingDepositCrypto');
   };
 
   const copyToClipboard = (text: string) => {
@@ -384,7 +393,8 @@ export default function Dashboard() {
         status: 'pending',
         metadata: {
           method: depositMethod,
-          proof: depositProof
+          proof: depositProof,
+          cryptoCurrency: selectedCrypto
         }
       });
       setDepositStep('success');
@@ -394,6 +404,31 @@ export default function Dashboard() {
       setDepositStep('amount');
     }
   };
+
+  const cryptoAssets = {
+    btc: {
+      label: 'Bitcoin (BTC)',
+      network: 'Bitcoin Network',
+      address: '14wYNynPn4Sc7jB4ecZ133o5ZvzSr3wqmj'
+    },
+    eth: {
+      label: 'Ethereum (ETH)',
+      network: 'ERC20 Network',
+      address: '0xa8155b13c25a4b6c70d7877303a3dd69ca12b444'
+    },
+    sol: {
+      label: 'Solana (SOL)',
+      network: 'Solana Network',
+      address: 'EKWiVoL7rF8PqSowtkwcHJBMe5Y5dDSdXx8sZwpQ69ZA'
+    },
+    usdt: {
+      label: 'Tether (USDT)',
+      network: 'TRC20 Network',
+      address: 'TWAcMv27vtWFtBxJeC8AvuZ1dtryjjpe71'
+    }
+  };
+
+  const currentAsset = cryptoAssets[selectedCrypto] || cryptoAssets.btc;
 
   return (
     <div className="vault-dashboard">
@@ -554,7 +589,9 @@ export default function Dashboard() {
                         {pkg.type === 'stocks' && <TrendingUp size={12} color="#ffffff" />}
                       </div>
                       <h4 className="vault-package-name">{pkg.name}</h4>
-                      <div className="vault-package-yield">{pkg.yield} <span style={{ fontSize: '10px', color: 'var(--muted)' }}>ROI</span></div>
+                      <div className="vault-package-yield" style={{ color: pkg.yield?.startsWith('-') ? 'var(--danger)' : 'var(--success)' }}>
+                        {pkg.yield} <span style={{ fontSize: '10px', color: 'var(--muted)' }}>ROI</span>
+                      </div>
                       <div className="vault-package-min">Min Investment: ${pkg.min_investment}</div>
                       <button 
                         className="vault-btn vault-btn-primary" 
@@ -583,7 +620,7 @@ export default function Dashboard() {
                         {pkg.type === 'stocks' && <TrendingUp size={12} color="#ffffff" />}
                       </div>
                       <h4 className="vault-package-name">{pkg.name}</h4>
-                      <div className="vault-package-yield">{pkg.yield}</div>
+                      <div className="vault-package-yield" style={{ color: pkg.yield?.startsWith('-') ? 'var(--danger)' : 'var(--success)' }}>{pkg.yield}</div>
                       <div className="vault-package-min">Min Investment: ${pkg.min_investment}</div>
                       <button 
                         className="vault-btn vault-btn-primary" 
@@ -627,7 +664,7 @@ export default function Dashboard() {
                           </td>
                           <td style={{ fontFamily: 'var(--font-mono)' }}>Active</td>
                           <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(inv.amount).toLocaleString()}</td>
-                          <td style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
+                          <td style={{ color: inv.yield?.startsWith('-') ? 'var(--danger)' : 'var(--success)', fontFamily: 'var(--font-mono)' }}>
                             {inv.yield}
                           </td>
                           <td style={{ textAlign: 'right' }}>
@@ -1108,9 +1145,50 @@ export default function Dashboard() {
 
                     {depositMethod === 'crypto' && (
                       <div style={{ fontSize: '13px', lineHeight: 1.6 }}>
-                        <div style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', marginBottom: '8px' }}>BTC Wallet (SegWit)</div>
+                        <div style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', marginBottom: '12px' }}>
+                          Select Cryptocurrency
+                        </div>
+                        <div style={{ display: 'flex', gap: '8px', marginBottom: '20px', flexWrap: 'wrap' }}>
+                          {(['btc', 'eth', 'sol', 'usdt'] as const).map((cryptoKey) => {
+                            const isSelected = selectedCrypto === cryptoKey;
+                            const labels = {
+                              btc: 'BTC',
+                              eth: 'ETH (ERC20)',
+                              sol: 'SOL',
+                              usdt: 'USDT (TRC20)'
+                            };
+                            return (
+                              <button
+                                key={cryptoKey}
+                                type="button"
+                                onClick={() => setSelectedCrypto(cryptoKey)}
+                                style={{
+                                  flex: '1 1 calc(50% - 8px)',
+                                  background: isSelected ? 'rgba(212, 175, 55, 0.1)' : 'var(--bg)',
+                                  color: isSelected ? 'var(--accent)' : 'var(--muted)',
+                                  border: '1px solid',
+                                  borderColor: isSelected ? 'var(--accent)' : 'var(--border)',
+                                  padding: '10px 8px',
+                                  borderRadius: '4px',
+                                  fontSize: '11px',
+                                  fontFamily: 'var(--font-mono)',
+                                  cursor: 'pointer',
+                                  transition: 'all 0.15s ease',
+                                  textAlign: 'center',
+                                  textTransform: 'uppercase',
+                                  letterSpacing: '0.05em'
+                                }}
+                              >
+                                {labels[cryptoKey]}
+                              </button>
+                            );
+                          })}
+                        </div>
+                        <div style={{ color: 'var(--muted)', fontSize: '10px', textTransform: 'uppercase', marginBottom: '8px' }}>
+                          {currentAsset.label} Address ({currentAsset.network})
+                        </div>
                         <div style={{ 
-                          padding: '12px', 
+                          padding: '16px', 
                           background: 'var(--bg)', 
                           border: '1px dashed var(--border)', 
                           wordBreak: 'break-all', 
@@ -1118,9 +1196,11 @@ export default function Dashboard() {
                           fontFamily: 'var(--font-mono)',
                           fontSize: '11px',
                           color: 'var(--accent)',
-                          cursor: 'pointer'
-                        }} onClick={() => copyToClipboard('bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh')}>
-                          bc1qxy2kgdygjrsqtzq2n0yrf2493p83kkfjhx0wlh
+                          cursor: 'pointer',
+                          borderRadius: '4px',
+                          transition: 'all 0.2s ease',
+                        }} onClick={() => copyToClipboard(currentAsset.address)}>
+                          {currentAsset.address}
                           <div style={{ fontSize: '9px', marginTop: '8px', color: 'var(--muted)' }}>Click to copy address</div>
                         </div>
                       </div>

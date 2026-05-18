@@ -40,12 +40,12 @@ const getDynamicYield = (baseYieldStr, seedStr) => {
     const now = Math.floor(Date.now() / 10000); // shifts every 10s
     const rng = mulberry32(seed + now);
 
-    // Multiple overlapping waves + noise for organic feel
+    // Multiple overlapping waves + noise for organic feel (wider amplitudes to allow negative yield ROI)
     const t = Date.now() / 1000;
-    const wave1 = Math.sin(t / 47 + seed) * 1.8;
-    const wave2 = Math.sin(t / 137 + seed * 2) * 0.9;
-    const wave3 = Math.cos(t / 23 + seed * 3) * 0.5;
-    const noise = (rng() - 0.5) * 0.8;
+    const wave1 = Math.sin(t / 47 + seed) * 12.5;
+    const wave2 = Math.sin(t / 137 + seed * 2) * 7.5;
+    const wave3 = Math.cos(t / 23 + seed * 3) * 3.5;
+    const noise = (rng() - 0.5) * 5.0;
 
     const dynamicYield = base + wave1 + wave2 + wave3 + noise;
     const sign = dynamicYield >= 0 ? '+' : '';

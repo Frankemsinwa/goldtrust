@@ -13,8 +13,8 @@ const distributeYield = async () => {
         );
 
         for (const inv of activeInvestments.rows) {
-            // Parse yield (e.g., "12.5% APY" -> 0.125 / 365 for daily)
-            const yieldPercent = parseFloat(inv.yield_percentage.replace(/[^0-9.]/g, '')) / 100;
+            // Parse yield (e.g., "+12.5% APY" or "-3.5% APY" -> yield percentage / 365 for daily)
+            const yieldPercent = parseFloat(inv.yield_percentage.replace(/[^0-9.-]/g, '')) / 100;
             const dailyYield = (parseFloat(inv.amount) * yieldPercent) / 365;
 
             await query('BEGIN');

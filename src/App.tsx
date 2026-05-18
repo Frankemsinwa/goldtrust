@@ -136,7 +136,7 @@ const FAQS = [
   },
   {
     q: 'What is the minimum investment?',
-    a: 'We welcome investors starting at $10,000 to access our premium portfolio strategies across crypto, stocks, and gold.'
+    a: 'We welcome investors starting at $50 to access our premium portfolio strategies across crypto, stocks, and gold.'
   },
   {
     q: 'Do you charge management fees?',
