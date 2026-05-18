@@ -26,7 +26,6 @@ import {
   ArrowRight,
   Banknote,
   Send,
-  CreditCard,
   Copy
 } from 'lucide-react';
 import './Dashboard.css';
