@@ -1443,7 +1443,7 @@ function AppContent() {
       <footer className="vault-footer">
         <div className="vault-footer-row">
           <div className="vault-footer-copy">
-            &copy; 2025 GOLDTRUST IMPERIAL HOLDINGS LIMITED. ALL RIGHTS RESERVED.
+            &copy; 2026 GOLDTRUST IMPERIAL HOLDINGS LIMITED. ALL RIGHTS RESERVED.
           </div>
           <div className="vault-footer-contact-group">
             <span>Secure Vault Desk: <strong style={{ color: 'var(--fg)', fontFamily: 'var(--font-mono)' }}>+44 7346 896494</strong></span>
