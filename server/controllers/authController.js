@@ -6,13 +6,22 @@ const { ethers } = require('ethers');
 const { sendOTP, sendPasswordReset } = require('../config/mailer');
 
 const register = async (req, res) => {
-    const { email, password, fullName } = req.body;
+    const { email, password, fullName, referralCode } = req.body;
 
     try {
         // Check if user exists
         const userExists = await query('SELECT * FROM users WHERE email = $1', [email]);
         if (userExists.rows.length > 0) {
             return res.status(400).json({ error: 'User already exists' });
+        }
+
+        // Find referrer ID if code is supplied
+        let referredBy = null;
+        if (referralCode) {
+            const referrerResult = await query('SELECT id FROM users WHERE referral_code = $1', [referralCode]);
+            if (referrerResult.rows.length > 0) {
+                referredBy = referrerResult.rows[0].id;
+            }
         }
 
         // Hash password
@@ -23,10 +32,13 @@ const register = async (req, res) => {
         const otp = Math.floor(100000 + Math.random() * 900000).toString();
         const otpExpiry = new Date(Date.now() + 10 * 60 * 1000); // 10 minutes
 
+        // Generate unique referral code for the registering user
+        const generatedCode = 'GT-' + crypto.randomBytes(3).toString('hex').toUpperCase();
+
         // Create user
         const newUser = await query(
-            'INSERT INTO users (email, password_hash, full_name, otp, otp_expiry) VALUES ($1, $2, $3, $4, $5) RETURNING id, email, full_name, tier, role, is_email_verified',
-            [email, hashedPassword, fullName, otp, otpExpiry]
+            'INSERT INTO users (email, password_hash, full_name, otp, otp_expiry, referral_code, referred_by) VALUES ($1, $2, $3, $4, $5, $6, $7) RETURNING id, email, full_name, tier, role, is_email_verified, referral_code',
+            [email, hashedPassword, fullName, otp, otpExpiry, generatedCode, referredBy]
         );
 
         // Create default Imperial Balance (USD escrow wallet)

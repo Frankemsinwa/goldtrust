@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { BrowserRouter as Router, Routes, Route, useNavigate } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
 import api from './api'
 import Dashboard from './dashboard/Dashboard'
 import Admin from './admin/Admin'
@@ -949,7 +949,8 @@ function AppContent() {
     fullName: '',
     email: '',
     password: '',
-    preferredAsset: ''
+    preferredAsset: '',
+    referralCode: ''
   })
   const [showPassword, setShowPassword] = useState(false)
   const [authLoading, setAuthLoading] = useState(false)
@@ -1054,6 +1055,16 @@ function AppContent() {
   const otpRefs = useRef<(HTMLInputElement | null)[]>([])
   const chatEndRef = useRef<HTMLDivElement>(null)
   const navigate = useNavigate()
+  const location = useLocation()
+
+  useEffect(() => {
+    if (location.state?.openLogin) {
+      setShowAuth(true)
+      setIsRegister(false)
+      // Clear location state so refreshing doesn't keep opening it
+      navigate(location.pathname, { replace: true, state: {} })
+    }
+  }, [location, navigate])
 
   const scrollToBottom = () => {
     chatEndRef.current?.scrollIntoView({ behavior: 'smooth' })
@@ -1209,7 +1220,8 @@ function AppContent() {
         await api.post('/auth/register', {
           email: authForm.email,
           password: authForm.password,
-          fullName: authForm.fullName
+          fullName: authForm.fullName,
+          referralCode: authForm.referralCode
         })
         setVerificationPending(true)
       } else {
@@ -1752,6 +1764,16 @@ function AppContent() {
                     <option value="gold" style={{ background: 'var(--bg)' }}>Gold Mining</option>
                   </select>
                 </div>
+                <div className="vault-input-group" style={!isRegister ? { height: 0, margin: 0, opacity: 0, overflow: 'hidden', pointerEvents: 'none', padding: 0 } : { transition: 'all 0.3s ease', marginBottom: '20px' }}>
+                  <label className="vault-input-label">Referral Code (Optional)</label>
+                  <input 
+                    type="text" 
+                    className="vault-input" 
+                    placeholder="GT-XXXXXX" 
+                    value={authForm.referralCode}
+                    onChange={e => setAuthForm({...authForm, referralCode: e.target.value.toUpperCase()})}
+                  />
+                </div>
                 <div className="vault-input-group">
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                     <label className="vault-input-label">{isRegister ? 'New Access Key' : 'Access Key'}</label>
@@ -1912,6 +1934,14 @@ function AppContent() {
 }
 
 
+function LoginRedirect() {
+  const navigate = useNavigate()
+  useEffect(() => {
+    navigate('/', { replace: true, state: { openLogin: true } })
+  }, [navigate])
+  return null
+}
+
 function App() {
   return (
     <Router>
@@ -1919,6 +1949,7 @@ function App() {
         <Route path="/" element={<AppContent />} />
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<Admin />} />
+        <Route path="/login" element={<LoginRedirect />} />
       </Routes>
     </Router>
   )

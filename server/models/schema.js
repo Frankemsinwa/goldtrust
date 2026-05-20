@@ -24,6 +24,8 @@ CREATE TABLE IF NOT EXISTS users (
     otp_expiry TIMESTAMP,
     failed_attempts INTEGER DEFAULT 0,
     is_blocked BOOLEAN DEFAULT FALSE,
+    referral_code VARCHAR(50) UNIQUE,
+    referred_by INTEGER REFERENCES users(id) ON DELETE SET NULL,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
@@ -88,6 +90,19 @@ const initDb = async () => {
             ALTER TABLE users ADD COLUMN IF NOT EXISTS failed_attempts INTEGER DEFAULT 0;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS is_blocked BOOLEAN DEFAULT FALSE;
         `);
+
+        // Migration: Add referral columns if they don't exist
+        await query(`
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) UNIQUE;
+            ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+        `);
+
+        // Seed/Backfill existing users who don't have a referral code
+        const usersWithoutRef = await query('SELECT id FROM users WHERE referral_code IS NULL');
+        for (const row of usersWithoutRef.rows) {
+            const code = 'GT-' + Math.random().toString(36).substring(2, 8).toUpperCase();
+            await query('UPDATE users SET referral_code = $1 WHERE id = $2', [code, row.id]);
+        }
 
         // Seed default packages if empty
         const pkgs = await query('SELECT COUNT(*) FROM investment_packages');

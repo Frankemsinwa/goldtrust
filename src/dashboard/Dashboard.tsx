@@ -26,10 +26,12 @@ import {
   ArrowRight,
   Banknote,
   Send,
-  Copy
+  Copy,
+  Users
 } from 'lucide-react';
 import './Dashboard.css';
 import TradingChart from './TradingChart';
+import DashboardTour from './DashboardTour';
 
 // Mock data kept as fallback for structural safety, but replaced by API data in useEffect
 
@@ -44,6 +46,8 @@ export default function Dashboard() {
   const [investments, setInvestments] = useState<any[]>([]);
   const [wallets, setWallets] = useState<any[]>([]);
   const [history, setHistory] = useState<any[]>([]);
+  const [referralStats, setReferralStats] = useState<any>(null);
+  const [isTourOpen, setIsTourOpen] = useState(false);
 
   // Market Engine State
   const [totalProfit, setTotalProfit] = useState(0);
@@ -101,18 +105,35 @@ export default function Dashboard() {
 
   const fetchData = useCallback(async () => {
     try {
-      const [pkgsRes, invRes, wallRes, histRes] = await Promise.all([
+      const [pkgsRes, invRes, wallRes, histRes, refRes] = await Promise.all([
         api.get('/packages'),
         api.get('/investments'),
         api.get('/wallets'),
-        api.get('/transactions')
+        api.get('/transactions'),
+        api.get('/referrals').catch(err => {
+          console.error('Referrals API error:', err);
+          return { data: null };
+        })
       ]);
       setPackages(pkgsRes.data);
       setInvestments(invRes.data);
       setWallets(wallRes.data);
       setHistory(histRes.data);
+      if (refRes && refRes.data) {
+        setReferralStats(refRes.data);
+      }
     } catch (err) {
       console.error('Failed to fetch dashboard data', err);
+    }
+  }, []);
+
+  useEffect(() => {
+    const completed = localStorage.getItem('vault_tour_completed');
+    if (completed !== 'true') {
+      const timer = setTimeout(() => {
+        setIsTourOpen(true);
+      }, 1500);
+      return () => clearTimeout(timer);
     }
   }, []);
 
@@ -444,7 +465,7 @@ export default function Dashboard() {
           />
         </div>
         
-        <nav className="vault-sidebar-nav">
+        <nav id="tour-sidebar" className="vault-sidebar-nav">
           <div className={`vault-sidebar-link ${activeTab === 'overview' ? 'active' : ''}`} onClick={() => handleNavClick('overview')}>
             <LayoutDashboard size={18} /> Overview
           </div>
@@ -460,7 +481,13 @@ export default function Dashboard() {
           <div className={`vault-sidebar-link ${activeTab === 'history' ? 'active' : ''}`} onClick={() => handleNavClick('history')}>
             <History size={18} /> History
           </div>
-          <div style={{ marginTop: 'auto' }} className={`vault-sidebar-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => handleNavClick('settings')}>
+          <div className={`vault-sidebar-link ${activeTab === 'affiliate' ? 'active' : ''}`} onClick={() => handleNavClick('affiliate')}>
+            <Users size={18} /> Affiliates
+          </div>
+          <div className="vault-sidebar-link" onClick={() => setIsTourOpen(true)} style={{ color: 'var(--accent)', marginTop: 'auto' }}>
+            <Gem size={18} /> System Guide
+          </div>
+          <div className={`vault-sidebar-link ${activeTab === 'settings' ? 'active' : ''}`} onClick={() => handleNavClick('settings')}>
             <Settings size={18} /> Settings
           </div>
         </nav>
@@ -496,11 +523,13 @@ export default function Dashboard() {
               {activeTab === 'portfolio' && 'Imperial Assets'}
               {activeTab === 'wallets' && 'Imperial Wallets'}
               {activeTab === 'history' && 'Transaction History'}
+              {activeTab === 'affiliate' && 'Imperial Affiliate Portal'}
               {activeTab === 'settings' && 'Imperial Settings'}
             </h2>
           </div>
           <div className="vault-db-actions" style={{ display: 'flex', gap: '12px', alignItems: 'center' }}>
             <button 
+              id="tour-wallet-btn"
               className="vault-btn vault-btn-secondary" 
               style={{ padding: '8px 20px', fontSize: '11px' }}
               onClick={() => open()}
@@ -521,7 +550,7 @@ export default function Dashboard() {
           {activeTab === 'overview' && (
             <div className="vault-db-grid">
               {/* Balance Card */}
-              <div className="vault-card vault-card-balance">
+              <div id="tour-balance-card" className="vault-card vault-card-balance">
                 <div className="vault-balance-header">
                   <div>
                     <span className="vault-balance-label">Total Portfolio Value</span>
@@ -548,7 +577,7 @@ export default function Dashboard() {
               </div>
 
               {/* Asset Allocation */}
-              <div className="vault-card vault-card-assets">
+              <div id="tour-chart-section" className="vault-card vault-card-assets">
                 <span className="vault-balance-label">Asset Allocation</span>
                 <div style={{ marginTop: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
                   <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
@@ -609,7 +638,7 @@ export default function Dashboard() {
 
           {activeTab === 'invest' && (
             <div className="vault-db-grid">
-               <div className="vault-card vault-card-packages">
+               <div id="tour-packages-grid" className="vault-card vault-card-packages">
                 <div className="vault-packages-row">
                   {packages.map(pkg => (
                     <div key={pkg.id} className="vault-package-item">
@@ -638,7 +667,7 @@ export default function Dashboard() {
 
           {activeTab === 'portfolio' && (
             <div className="vault-db-grid">
-              <div className="vault-card vault-card-packages">
+              <div id="tour-portfolio-assets" className="vault-card vault-card-packages">
                 <div className="vault-table-container">
                   <table className="vault-table">
                     <thead>
@@ -683,7 +712,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'wallets' && (
-            <div className="vault-db-grid">
+            <div id="tour-wallets-grid" className="vault-db-grid">
               {wallets.map(wallet => (
                 <div key={wallet.id} className="vault-card" style={{ gridColumn: 'span 4' }}>
                   <div className="vault-balance-label" style={{ marginBottom: '16px', display: 'flex', alignItems: 'center', gap: '8px' }}>
@@ -743,7 +772,7 @@ export default function Dashboard() {
 
           {activeTab === 'history' && (
             <div className="vault-db-grid">
-              <div className="vault-card vault-card-packages">
+              <div id="tour-history-table" className="vault-card vault-card-packages">
                 <div className="vault-table-container">
                   <table className="vault-table">
                     <thead>
@@ -787,7 +816,7 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'settings' && (
-            <div className="vault-db-grid">
+            <div id="tour-settings-grid" className="vault-db-grid">
               <div className="vault-card vault-card-profile">
                 <span className="vault-balance-label">Profile Information</span>
                 <div style={{ marginTop: '24px' }}>
@@ -852,6 +881,173 @@ export default function Dashboard() {
                     <div className="vault-tier-value">EARLY</div>
                     <div className="vault-tier-label">Deal Access</div>
                   </div>
+                </div>
+              </div>
+            </div>
+          )}
+
+          {activeTab === 'affiliate' && (
+            <div id="tour-affiliate-section" className="vault-db-grid">
+              {/* Stats Cards */}
+              <div className="vault-card" style={{ gridColumn: 'span 6' }}>
+                <div className="vault-balance-header" style={{ marginBottom: '16px' }}>
+                  <div style={{ width: '100%' }}>
+                    <span className="vault-balance-label">Your Referral Link</span>
+                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px' }}>
+                      <input 
+                        type="text" 
+                        readOnly 
+                        value={referralStats?.referralCode ? `${window.location.origin}/register?ref=${referralStats.referralCode}` : 'Generating...'} 
+                        style={{ 
+                          background: 'rgba(255,255,255,0.05)', 
+                          border: '1px solid var(--border)', 
+                          borderRadius: '4px', 
+                          padding: '8px 12px', 
+                          color: '#fff', 
+                          fontFamily: 'var(--font-mono)', 
+                          fontSize: '12px', 
+                          width: '100%',
+                          outline: 'none'
+                        }} 
+                      />
+                      <button 
+                        className="vault-btn vault-btn-primary" 
+                        style={{ padding: '8px 16px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                        onClick={() => copyToClipboard(referralStats?.referralCode ? `${window.location.origin}/register?ref=${referralStats.referralCode}` : '')}
+                      >
+                        <Copy size={14} /> {isCopied ? 'Copied' : 'Copy'}
+                      </button>
+                    </div>
+                  </div>
+                </div>
+                <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '8px' }}>
+                  Share this link with potential investors. You'll receive a 5% commission on any packages they fund.
+                </div>
+              </div>
+
+              <div className="vault-card" style={{ gridColumn: 'span 3' }}>
+                <span className="vault-balance-label">Referral Earnings</span>
+                <div style={{ fontSize: '24px', fontFamily: 'var(--font-display)', margin: '12px 0 4px 0', color: 'var(--success)' }}>
+                  ${(referralStats?.totalEarned || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                </div>
+                <span style={{ fontSize: '10px', color: 'var(--muted)' }}>Credited to Imperial Balance</span>
+              </div>
+
+              <div className="vault-card" style={{ gridColumn: 'span 3' }}>
+                <span className="vault-balance-label">Performance Overview</span>
+                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
+                  <div>
+                    <div style={{ fontSize: '18px', fontWeight: 600 }}>{referralStats?.referredCount || 0}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted)' }}>Total Referrals</div>
+                  </div>
+                  <div>
+                    <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--accent)' }}>{referralStats?.investedReferredCount || 0}</div>
+                    <div style={{ fontSize: '10px', color: 'var(--muted)' }}>Active Investors</div>
+                  </div>
+                </div>
+              </div>
+
+              {/* Referred Users list */}
+              <div className="vault-card" style={{ gridColumn: 'span 12', marginTop: '16px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <span className="vault-balance-label">Referred Network</span>
+                </div>
+                <div className="vault-table-container">
+                  <table className="vault-table">
+                    <thead>
+                      <tr>
+                        <th>Investor</th>
+                        <th>Email</th>
+                        <th>Date Joined</th>
+                        <th>Active Investments</th>
+                        <th>Total Invested</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {referralStats?.referredUsers?.map((refUser: any) => (
+                        <tr key={refUser.id}>
+                          <td style={{ fontWeight: 500 }}>{refUser.full_name}</td>
+                          <td style={{ color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{refUser.email}</td>
+                          <td style={{ fontSize: '11px', color: 'var(--muted)' }}>{new Date(refUser.created_at).toLocaleDateString()}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)' }}>{refUser.investment_count || 0}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(refUser.total_invested || 0).toLocaleString()}</td>
+                          <td>
+                            <span style={{ 
+                              fontSize: '10px', 
+                              background: refUser.investment_count > 0 ? 'rgba(0,255,0,0.1)' : 'rgba(255,255,255,0.05)', 
+                              color: refUser.investment_count > 0 ? 'var(--success)' : 'var(--muted)', 
+                              padding: '2px 8px',
+                              borderRadius: '2px'
+                            }}>
+                              {refUser.investment_count > 0 ? 'Active Investor' : 'Registered'}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!referralStats?.referredUsers || referralStats.referredUsers.length === 0) && (
+                        <tr>
+                          <td colSpan={6} style={{ textAlign: 'center', color: 'var(--muted)', padding: '40px' }}>
+                            No referrals yet. Share your link to start building your network.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
+                </div>
+              </div>
+
+              {/* Commission ledger */}
+              <div className="vault-card" style={{ gridColumn: 'span 12', marginTop: '16px' }}>
+                <div style={{ marginBottom: '16px' }}>
+                  <span className="vault-balance-label">Commission Ledger</span>
+                </div>
+                <div className="vault-table-container">
+                  <table className="vault-table">
+                    <thead>
+                      <tr>
+                        <th>Transaction ID</th>
+                        <th>Investor</th>
+                        <th>Strategy / Package</th>
+                        <th>Investment Amount</th>
+                        <th>Commission (5%)</th>
+                        <th>Date</th>
+                        <th>Status</th>
+                      </tr>
+                    </thead>
+                    <tbody>
+                      {referralStats?.commissions?.map((comm: any) => (
+                        <tr key={comm.id}>
+                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--muted)' }}>TX-{comm.id}</td>
+                          <td>{comm.metadata?.referredUserName || 'N/A'}</td>
+                          <td>{comm.metadata?.packageName || 'N/A'}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(comm.metadata?.investmentAmount || 0).toLocaleString()}</td>
+                          <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)', fontWeight: 500 }}>
+                            +${parseFloat(comm.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                          </td>
+                          <td style={{ fontSize: '11px', color: 'var(--muted)' }}>{new Date(comm.created_at).toLocaleString()}</td>
+                          <td>
+                            <span style={{ 
+                              fontSize: '10px', 
+                              background: 'rgba(0,255,0,0.1)', 
+                              color: 'var(--success)', 
+                              padding: '2px 8px',
+                              borderRadius: '2px'
+                            }}>
+                              {comm.status}
+                            </span>
+                          </td>
+                        </tr>
+                      ))}
+                      {(!referralStats?.commissions || referralStats.commissions.length === 0) && (
+                        <tr>
+                          <td colSpan={7} style={{ textAlign: 'center', color: 'var(--muted)', padding: '40px' }}>
+                            No commission payouts recorded yet.
+                          </td>
+                        </tr>
+                      )}
+                    </tbody>
+                  </table>
                 </div>
               </div>
             </div>
@@ -1409,6 +1605,15 @@ export default function Dashboard() {
           </button>
         )}
       </main>
+
+      <DashboardTour 
+        activeTab={activeTab}
+        setActiveTab={setActiveTab}
+        isOpen={isTourOpen}
+        onClose={() => setIsTourOpen(false)}
+        isSidebarOpen={isSidebarOpen}
+        setIsSidebarOpen={setIsSidebarOpen}
+      />
     </div>
   );
 }

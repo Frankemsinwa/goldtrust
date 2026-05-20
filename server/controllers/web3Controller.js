@@ -1,5 +1,6 @@
 const { query } = require('../config/db');
 const { ethers } = require('ethers');
+const { handleReferralCommission } = require('../utils/referral');
 
 const linkWallet = async (req, res) => {
     if (!req.body) {
@@ -85,6 +86,23 @@ const verifyTransaction = async (req, res) => {
             'INSERT INTO investments (user_id, package_id, amount, status) VALUES ($1, $2, $3, $4)',
             [req.user.id, packageId, amount, 'active']
         );
+
+        // Fetch package name for referral metadata
+        let packageName = 'Web3 Investment';
+        try {
+            const pkgResult = await query('SELECT name FROM investment_packages WHERE id = $1', [packageId]);
+            if (pkgResult.rows.length > 0) {
+                packageName = pkgResult.rows[0].name;
+            }
+        } catch (pkgErr) {
+            console.error('[WEB3 REFERRAL METADATA] Failed to fetch package name:', pkgErr);
+        }
+
+        // Process referral commission asynchronously
+        handleReferralCommission(req.user.id, amount, {
+            packageId,
+            packageName
+        });
 
         res.json({ 
             message: 'On-chain transaction verified. Investment activated.',

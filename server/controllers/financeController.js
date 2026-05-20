@@ -1,6 +1,7 @@
 const { query } = require('../config/db');
 const { sendInvestmentConfirmation } = require('../config/mailer');
 const { getDynamicYield, getMarketChart, getPortfolioProfit } = require('../utils/marketEngine');
+const { handleReferralCommission } = require('../utils/referral');
 
 const getPackages = async (req, res) => {
     try {
@@ -105,6 +106,12 @@ const createInvestment = async (req, res) => {
         );
 
         await query('COMMIT');
+
+        // Process referral commission asynchronously
+        handleReferralCommission(req.user.id, amount, {
+            packageId,
+            packageName: pkg.name
+        });
 
         // 5. Send Premium Confirmation Email
         try {
