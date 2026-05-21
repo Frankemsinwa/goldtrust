@@ -286,14 +286,96 @@
   text-transform: uppercase;
 }
 
-.vault-mobile-only {
-  display: none;
+.vault-status-tag {
+  font-size: 10px;
+  padding: 2px 8px;
+  border-radius: 2px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+}
+
+.vault-status-tag.active {
+  background: rgba(0, 255, 0, 0.1);
+  color: var(--success);
+}
+
+.vault-status-tag.inactive {
+  background: rgba(255, 255, 255, 0.05);
+  color: var(--muted);
+}
+
+/* ===== AFFILIATE TAB SPECIFICS ===== */
+.vault-affiliate-link-row {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+  margin-top: 12px;
+}
+
+.vault-affiliate-input {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 8px 12px;
+  color: #fff;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  width: 100%;
+  outline: none;
+  transition: border-color var(--duration) var(--ease);
+}
+
+.vault-affiliate-input:focus {
+  border-color: var(--accent);
+}
+
+.vault-affiliate-copy-btn {
+  padding: 8px 16px;
+  font-size: 11px;
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  white-space: nowrap;
+}
+
+.vault-affiliate-hint {
+  font-size: 11px;
+  color: var(--muted);
+  marginTop: 8px;
+}
+
+.vault-affiliate-stat-value {
+  font-size: 24px;
+  font-family: var(--font-display);
+  margin: 12px 0 4px 0;
+}
+
+.vault-affiliate-stat-sub {
+  font-size: 10px;
+  color: var(--muted);
+}
+
+.vault-affiliate-performance-row {
+  display: flex;
+  justify-content: space-between;
+  margin-top: 16px;
+}
+
+.vault-affiliate-performance-value {
+  font-size: 18px;
+  font-weight: 600;
+}
+
+.vault-affiliate-performance-label {
+  font-size: 10px;
+  color: var(--muted);
 }
 
 /* ===== RESPONSIVE ===== */
 @media (max-width: 1200px) {
   .vault-card-balance { grid-column: span 12; }
   .vault-card-assets { grid-column: span 12; }
+  .vault-affiliate-card-link { grid-column: span 12 !important; }
 }
 
 @media (max-width: 768px) {
@@ -323,6 +405,25 @@
 
   .vault-db-header {
     padding: 0 20px;
+    height: auto;
+    min-height: 72px;
+    flex-direction: column;
+    align-items: flex-start;
+    padding-top: 16px;
+    padding-bottom: 16px;
+    gap: 12px;
+  }
+
+  .vault-db-actions {
+    width: 100%;
+    gap: 8px !important;
+  }
+
+  .vault-db-actions .vault-btn {
+    flex: 1;
+    padding: 8px 10px !important;
+    font-size: 10px !important;
+    white-space: nowrap;
   }
 
   .vault-db-title {
@@ -347,7 +448,10 @@
   .vault-card-assets, 
   .vault-card-packages,
   .vault-card-profile,
-  .vault-card-security {
+  .vault-card-security,
+  .vault-affiliate-card-link,
+  .vault-affiliate-card-stat,
+  .vault-affiliate-card-table {
     grid-column: span 12 !important;
     padding: 20px;
   }
@@ -368,7 +472,41 @@
     grid-template-columns: repeat(2, 1fr);
     gap: 12px;
   }
+
+  .vault-affiliate-link-row {
+    flex-direction: column;
+    align-items: stretch;
+  }
+
+  .vault-affiliate-copy-btn {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .vault-table-hide-mobile {
+    display: none;
+  }
+
+  .vault-table-email {
+    max-width: 100px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
 }
+
+@media (max-width: 992px) {
+  .vault-table-hide-tablet {
+    display: none;
+  }
+}
+
+@media (max-width: 480px) {
+  .vault-tier-grid {
+    grid-template-columns: 1fr;
+  }
+}
+
 
 @media (max-width: 480px) {
   .vault-tier-grid {

@@ -887,32 +887,21 @@ export default function Dashboard() {
           )}
 
           {activeTab === 'affiliate' && (
-            <div id="tour-affiliate-section" className="vault-db-grid">
+            <div id="tour-affiliate-section" className="vault-db-grid vault-affiliate-grid">
               {/* Stats Cards */}
-              <div className="vault-card" style={{ gridColumn: 'span 6' }}>
+              <div className="vault-card vault-affiliate-card-link" style={{ gridColumn: 'span 6' }}>
                 <div className="vault-balance-header" style={{ marginBottom: '16px' }}>
                   <div style={{ width: '100%' }}>
                     <span className="vault-balance-label">Your Referral Link</span>
-                    <div style={{ display: 'flex', gap: '8px', alignItems: 'center', marginTop: '12px' }}>
+                    <div className="vault-affiliate-link-row">
                       <input 
                         type="text" 
                         readOnly 
                         value={referralStats?.referralCode ? `${window.location.origin}/register?ref=${referralStats.referralCode}` : 'Generating...'} 
-                        style={{ 
-                          background: 'rgba(255,255,255,0.05)', 
-                          border: '1px solid var(--border)', 
-                          borderRadius: '4px', 
-                          padding: '8px 12px', 
-                          color: '#fff', 
-                          fontFamily: 'var(--font-mono)', 
-                          fontSize: '12px', 
-                          width: '100%',
-                          outline: 'none'
-                        }} 
+                        className="vault-affiliate-input"
                       />
                       <button 
-                        className="vault-btn vault-btn-primary" 
-                        style={{ padding: '8px 16px', fontSize: '11px', display: 'flex', alignItems: 'center', gap: '6px', whiteSpace: 'nowrap' }}
+                        className="vault-btn vault-btn-primary vault-affiliate-copy-btn" 
                         onClick={() => copyToClipboard(referralStats?.referralCode ? `${window.location.origin}/register?ref=${referralStats.referralCode}` : '')}
                       >
                         <Copy size={14} /> {isCopied ? 'Copied' : 'Copy'}
@@ -920,35 +909,35 @@ export default function Dashboard() {
                     </div>
                   </div>
                 </div>
-                <div style={{ fontSize: '11px', color: 'var(--muted)', marginTop: '8px' }}>
+                <div className="vault-affiliate-hint">
                   Share this link with potential investors. You'll receive a 5% commission on any packages they fund.
                 </div>
               </div>
 
-              <div className="vault-card" style={{ gridColumn: 'span 3' }}>
+              <div className="vault-card vault-affiliate-card-stat" style={{ gridColumn: 'span 3' }}>
                 <span className="vault-balance-label">Referral Earnings</span>
-                <div style={{ fontSize: '24px', fontFamily: 'var(--font-display)', margin: '12px 0 4px 0', color: 'var(--success)' }}>
+                <div className="vault-affiliate-stat-value" style={{ color: 'var(--success)' }}>
                   ${(referralStats?.totalEarned || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                 </div>
-                <span style={{ fontSize: '10px', color: 'var(--muted)' }}>Credited to Imperial Balance</span>
+                <span className="vault-affiliate-stat-sub">Credited to Imperial Balance</span>
               </div>
 
-              <div className="vault-card" style={{ gridColumn: 'span 3' }}>
+              <div className="vault-card vault-affiliate-card-stat" style={{ gridColumn: 'span 3' }}>
                 <span className="vault-balance-label">Performance Overview</span>
-                <div style={{ display: 'flex', justifyContent: 'space-between', marginTop: '16px' }}>
-                  <div>
-                    <div style={{ fontSize: '18px', fontWeight: 600 }}>{referralStats?.referredCount || 0}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--muted)' }}>Total Referrals</div>
+                <div className="vault-affiliate-performance-row">
+                  <div className="vault-affiliate-performance-item">
+                    <div className="vault-affiliate-performance-value">{referralStats?.referredCount || 0}</div>
+                    <div className="vault-affiliate-performance-label">Total Referrals</div>
                   </div>
-                  <div>
-                    <div style={{ fontSize: '18px', fontWeight: 600, color: 'var(--accent)' }}>{referralStats?.investedReferredCount || 0}</div>
-                    <div style={{ fontSize: '10px', color: 'var(--muted)' }}>Active Investors</div>
+                  <div className="vault-affiliate-performance-item">
+                    <div className="vault-affiliate-performance-value" style={{ color: 'var(--accent)' }}>{referralStats?.investedReferredCount || 0}</div>
+                    <div className="vault-affiliate-performance-label">Active Investors</div>
                   </div>
                 </div>
               </div>
 
               {/* Referred Users list */}
-              <div className="vault-card" style={{ gridColumn: 'span 12', marginTop: '16px' }}>
+              <div className="vault-card vault-affiliate-card-table" style={{ gridColumn: 'span 12', marginTop: '16px' }}>
                 <div style={{ marginBottom: '16px' }}>
                   <span className="vault-balance-label">Referred Network</span>
                 </div>
@@ -958,8 +947,8 @@ export default function Dashboard() {
                       <tr>
                         <th>Investor</th>
                         <th>Email</th>
-                        <th>Date Joined</th>
-                        <th>Active Investments</th>
+                        <th className="vault-table-hide-mobile">Date Joined</th>
+                        <th>Investments</th>
                         <th>Total Invested</th>
                         <th>Status</th>
                       </tr>
@@ -968,19 +957,13 @@ export default function Dashboard() {
                       {referralStats?.referredUsers?.map((refUser: any) => (
                         <tr key={refUser.id}>
                           <td style={{ fontWeight: 500 }}>{refUser.full_name}</td>
-                          <td style={{ color: 'var(--muted)', fontFamily: 'var(--font-mono)', fontSize: '11px' }}>{refUser.email}</td>
-                          <td style={{ fontSize: '11px', color: 'var(--muted)' }}>{new Date(refUser.created_at).toLocaleDateString()}</td>
+                          <td className="vault-table-email">{refUser.email}</td>
+                          <td className="vault-table-hide-mobile" style={{ fontSize: '11px', color: 'var(--muted)' }}>{new Date(refUser.created_at).toLocaleDateString()}</td>
                           <td style={{ fontFamily: 'var(--font-mono)' }}>{refUser.investment_count || 0}</td>
                           <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(refUser.total_invested || 0).toLocaleString()}</td>
                           <td>
-                            <span style={{ 
-                              fontSize: '10px', 
-                              background: refUser.investment_count > 0 ? 'rgba(0,255,0,0.1)' : 'rgba(255,255,255,0.05)', 
-                              color: refUser.investment_count > 0 ? 'var(--success)' : 'var(--muted)', 
-                              padding: '2px 8px',
-                              borderRadius: '2px'
-                            }}>
-                              {refUser.investment_count > 0 ? 'Active Investor' : 'Registered'}
+                            <span className={`vault-status-tag ${refUser.investment_count > 0 ? 'active' : 'inactive'}`}>
+                              {refUser.investment_count > 0 ? 'Active' : 'Joined'}
                             </span>
                           </td>
                         </tr>
@@ -998,7 +981,7 @@ export default function Dashboard() {
               </div>
 
               {/* Commission ledger */}
-              <div className="vault-card" style={{ gridColumn: 'span 12', marginTop: '16px' }}>
+              <div className="vault-card vault-affiliate-card-table" style={{ gridColumn: 'span 12', marginTop: '16px' }}>
                 <div style={{ marginBottom: '16px' }}>
                   <span className="vault-balance-label">Commission Ledger</span>
                 </div>
@@ -1006,34 +989,28 @@ export default function Dashboard() {
                   <table className="vault-table">
                     <thead>
                       <tr>
-                        <th>Transaction ID</th>
+                        <th className="vault-table-hide-mobile">TX ID</th>
                         <th>Investor</th>
-                        <th>Strategy / Package</th>
-                        <th>Investment Amount</th>
-                        <th>Commission (5%)</th>
-                        <th>Date</th>
+                        <th className="vault-table-hide-mobile">Package</th>
+                        <th>Invested</th>
+                        <th>Commission</th>
+                        <th className="vault-table-hide-tablet">Date</th>
                         <th>Status</th>
                       </tr>
                     </thead>
                     <tbody>
                       {referralStats?.commissions?.map((comm: any) => (
                         <tr key={comm.id}>
-                          <td style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--muted)' }}>TX-{comm.id}</td>
+                          <td className="vault-table-hide-mobile" style={{ fontFamily: 'var(--font-mono)', fontSize: '10px', color: 'var(--muted)' }}>TX-{comm.id}</td>
                           <td>{comm.metadata?.referredUserName || 'N/A'}</td>
-                          <td>{comm.metadata?.packageName || 'N/A'}</td>
+                          <td className="vault-table-hide-mobile">{comm.metadata?.packageName || 'N/A'}</td>
                           <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(comm.metadata?.investmentAmount || 0).toLocaleString()}</td>
                           <td style={{ fontFamily: 'var(--font-mono)', color: 'var(--success)', fontWeight: 500 }}>
                             +${parseFloat(comm.amount).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                           </td>
-                          <td style={{ fontSize: '11px', color: 'var(--muted)' }}>{new Date(comm.created_at).toLocaleString()}</td>
+                          <td className="vault-table-hide-tablet" style={{ fontSize: '11px', color: 'var(--muted)' }}>{new Date(comm.created_at).toLocaleString()}</td>
                           <td>
-                            <span style={{ 
-                              fontSize: '10px', 
-                              background: 'rgba(0,255,0,0.1)', 
-                              color: 'var(--success)', 
-                              padding: '2px 8px',
-                              borderRadius: '2px'
-                            }}>
+                            <span className="vault-status-tag active">
                               {comm.status}
                             </span>
                           </td>

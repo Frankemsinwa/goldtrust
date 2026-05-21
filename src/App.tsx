@@ -1063,6 +1063,14 @@ function AppContent() {
       setIsRegister(false)
       // Clear location state so refreshing doesn't keep opening it
       navigate(location.pathname, { replace: true, state: {} })
+    } else if (location.state?.openRegister) {
+      setShowAuth(true)
+      setIsRegister(true)
+      const savedRef = localStorage.getItem('referralCode')
+      if (savedRef) {
+        setAuthForm(prev => ({ ...prev, referralCode: savedRef }))
+      }
+      navigate(location.pathname, { replace: true, state: {} })
     }
   }, [location, navigate])
 
@@ -1194,6 +1202,7 @@ function AppContent() {
 
   const closeAuth = useCallback(() => {
     setShowAuth(false)
+    localStorage.removeItem('referralCode')
     setTimeout(() => {
       setIsRegister(false)
       setForgotMode('none')
@@ -1203,12 +1212,15 @@ function AppContent() {
   const toggleAuthMode = useCallback((e: React.MouseEvent) => {
     e.preventDefault()
     setIsRegister((v) => !v)
+    if (isRegister) {
+      localStorage.removeItem('referralCode')
+    }
     setForgotMode('none')
     setAuthError('')
     setVerificationPending(false)
     setOtp(['', '', '', '', '', ''])
     setShowPassword(false)
-  }, [])
+  }, [isRegister])
 
   const handleAuthSubmit = async (e: React.FormEvent) => {
     e.preventDefault()
@@ -1223,6 +1235,7 @@ function AppContent() {
           fullName: authForm.fullName,
           referralCode: authForm.referralCode
         })
+        localStorage.removeItem('referralCode')
         setVerificationPending(true)
       } else {
         const res = await api.post('/auth/login', {
@@ -1942,6 +1955,21 @@ function LoginRedirect() {
   return null
 }
 
+function RegisterRedirect() {
+  const navigate = useNavigate()
+  const [searchParams] = useState(new URLSearchParams(window.location.search))
+  
+  useEffect(() => {
+    const ref = searchParams.get('ref')
+    if (ref) {
+      localStorage.setItem('referralCode', ref)
+    }
+    navigate('/', { replace: true, state: { openRegister: true } })
+  }, [navigate, searchParams])
+  
+  return null
+}
+
 function App() {
   return (
     <Router>
@@ -1950,6 +1978,7 @@ function App() {
         <Route path="/dashboard" element={<Dashboard />} />
         <Route path="/admin" element={<Admin />} />
         <Route path="/login" element={<LoginRedirect />} />
+        <Route path="/register" element={<RegisterRedirect />} />
       </Routes>
     </Router>
   )
