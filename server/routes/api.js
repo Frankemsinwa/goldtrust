@@ -13,11 +13,12 @@ const {
     manageInvestment, 
     approveTransaction, 
     getAdminChats, 
-    replyToChat,
-    getAdminChatHistory,
-    toggleUserBlock
-} = require('../controllers/adminController');
-const { authMiddleware, adminMiddleware } = require('../middleware/auth');
+    replyToChat, 
+    getAdminChatHistory, 
+    toggleUserBlock,
+    getAdminPackages,
+    updatePackage
+} = require('../controllers/adminController');const { authMiddleware, adminMiddleware } = require('../middleware/auth');
 
 // Auth routes
 const authRouter = express.Router();
@@ -298,5 +299,8 @@ router.get('/admin/chats', authMiddleware, adminMiddleware, getAdminChats);
  */
 router.post('/admin/chats/:userId/reply', authMiddleware, adminMiddleware, replyToChat);
 router.get('/admin/chats/:userId', authMiddleware, adminMiddleware, getAdminChatHistory);
+
+router.get('/admin/packages', authMiddleware, adminMiddleware, getAdminPackages);
+router.put('/admin/packages/:id', authMiddleware, adminMiddleware, updatePackage);
 
 module.exports = router;

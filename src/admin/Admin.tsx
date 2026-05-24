@@ -37,6 +37,8 @@ export default function Admin() {
   const [users, setUsers] = useState<any[]>([]);
   const [investments, setInvestments] = useState<any[]>([]);
   const [transactions, setTransactions] = useState<any[]>([]);
+  const [packages, setPackages] = useState<any[]>([]);
+  const [editingPackage, setEditingPackage] = useState<any>(null);
   const [loading, setLoading] = useState(true);
 
   const activeChat = chats.find(c => c.user_id === selectedChat);
@@ -60,18 +62,20 @@ export default function Admin() {
 
   const fetchAdminData = useCallback(async () => {
     try {
-      const [statsRes, usersRes, invRes, txRes, chatsRes] = await Promise.all([
+      const [statsRes, usersRes, invRes, txRes, chatsRes, pkgsRes] = await Promise.all([
         api.get('/admin/stats'),
         api.get('/admin/users'),
         api.get('/admin/investments'),
         api.get('/admin/transactions'),
-        api.get('/admin/chats')
+        api.get('/admin/chats'),
+        api.get('/admin/packages')
       ]);
       setStats(statsRes.data);
       setUsers(usersRes.data);
       setInvestments(invRes.data);
       setTransactions(txRes.data);
       setChats(chatsRes.data);
+      setPackages(pkgsRes.data);
     } catch (err) {
       console.error('Failed to fetch admin data', err);
     } finally {
@@ -100,6 +104,19 @@ export default function Admin() {
       fetchAdminData();
     } catch (err) {
       console.error('Failed to approve transaction', err);
+    }
+  };
+
+  const handleUpdatePackage = async () => {
+    if (!editingPackage) return;
+    try {
+      await api.put(`/admin/packages/${editingPackage.id}`, editingPackage);
+      setEditingPackage(null);
+      fetchAdminData();
+      alert('Package updated successfully');
+    } catch (err) {
+      console.error('Failed to update package', err);
+      alert('Failed to update package');
     }
   };
 
@@ -324,6 +341,12 @@ export default function Admin() {
                         <td style={{ fontSize: 11, color: 'var(--muted)' }}>
                           {tx.metadata?.method && <span>Method: {tx.metadata.method.toUpperCase()}</span>}
                           {tx.metadata?.proof && <div style={{ wordBreak: 'break-all' }}>Proof: {tx.metadata.proof}</div>}
+                          {tx.type === 'WITHDRAWAL' && tx.metadata && (
+                            <div style={{ marginTop: '4px' }}>
+                              <div>{tx.metadata.blockchain} ({tx.metadata.network})</div>
+                              <div style={{ wordBreak: 'break-all', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{tx.metadata.destinationAddress}</div>
+                            </div>
+                          )}
                         </td>
                         <td style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(tx.created_at).toLocaleDateString()}</td>
                         <td><span className={`admin-status ${tx.status}`}>{tx.status}</span></td>
@@ -447,10 +470,13 @@ export default function Admin() {
               <div className="admin-panel">
                 <div className="admin-panel-header"><span className="admin-panel-title">Investment Packages</span></div>
                 <div className="admin-panel-body" style={{ padding: '8px 0' }}>
-                  {['Alpha Bitcoin Core — $5,000', 'Ethereum Yield Plus — $3,000', 'Blue Chip Tech — $2,500', 'Emerging Markets — $1,000', 'West African Mining — $10,000', 'Physical Bullion — $50,000', 'Micro Crypto Starter — $50'].map(p => (
-                    <div key={p} style={{ padding: '12px 24px', borderBottom: '0.5px solid oklch(20% 0.01 250)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13 }}>{p}</span>
-                      <button className="admin-action-btn">Edit</button>
+                  {packages.map(p => (
+                    <div key={p.id} style={{ padding: '12px 24px', borderBottom: '0.5px solid oklch(20% 0.01 250)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div style={{ display: 'flex', flexDirection: 'column' }}>
+                        <span style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</span>
+                        <span style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>${parseFloat(p.min_investment).toLocaleString()} • {p.yield}% Yield</span>
+                      </div>
+                      <button className="admin-action-btn" onClick={() => setEditingPackage(p)}>Edit</button>
                     </div>
                   ))}
                 </div>
@@ -460,6 +486,58 @@ export default function Admin() {
         </div>
         )}
       </main>
+
+      {editingPackage && (
+        <div className="vault-modal-overlay">
+          <div className="vault-modal">
+            <div className="vault-modal-header">
+              <h3 className="vault-modal-title">Edit Package</h3>
+            </div>
+            <div className="vault-modal-body" style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+              <div className="vault-input-group">
+                <label className="vault-label">Package Name</label>
+                <input 
+                  type="text" 
+                  className="vault-input" 
+                  value={editingPackage.name} 
+                  onChange={(e) => setEditingPackage({...editingPackage, name: e.target.value})}
+                />
+              </div>
+              <div className="vault-input-group">
+                <label className="vault-label">Type (crypto, stocks, gold)</label>
+                <input 
+                  type="text" 
+                  className="vault-input" 
+                  value={editingPackage.type} 
+                  onChange={(e) => setEditingPackage({...editingPackage, type: e.target.value})}
+                />
+              </div>
+              <div className="vault-input-group">
+                <label className="vault-label">Min Investment ($)</label>
+                <input 
+                  type="number" 
+                  className="vault-input" 
+                  value={editingPackage.min_investment} 
+                  onChange={(e) => setEditingPackage({...editingPackage, min_investment: e.target.value})}
+                />
+              </div>
+              <div className="vault-input-group">
+                <label className="vault-label">Yield (%)</label>
+                <input 
+                  type="number" 
+                  className="vault-input" 
+                  value={editingPackage.yield} 
+                  onChange={(e) => setEditingPackage({...editingPackage, yield: e.target.value})}
+                />
+              </div>
+            </div>
+            <div className="vault-modal-footer">
+              <button className="vault-btn vault-btn-secondary" onClick={() => setEditingPackage(null)}>Cancel</button>
+              <button className="vault-btn vault-btn-primary" onClick={handleUpdatePackage}>Save Changes</button>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

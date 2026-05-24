@@ -42,7 +42,21 @@ function createToast() {
 }
 
 // Start sequence
+let toastsShown = 0;
+const MAX_TOASTS = 3;
+
 setTimeout(() => {
-    createToast();
-    setInterval(createToast, 8000);
-}, 3000);
+    if (toastsShown < MAX_TOASTS) {
+        createToast();
+        toastsShown++;
+        
+        const interval = setInterval(() => {
+            if (toastsShown < MAX_TOASTS) {
+                createToast();
+                toastsShown++;
+            } else {
+                clearInterval(interval);
+            }
+        }, 15000);
+    }
+}, 10000);

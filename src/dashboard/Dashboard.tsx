@@ -74,6 +74,18 @@ export default function Dashboard() {
   const [isCopied, setIsCopied] = useState(false);
   const [selectedCrypto, setSelectedCrypto] = useState<'btc' | 'eth' | 'sol' | 'usdt'>('btc');
 
+  // Withdrawal State
+  const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
+  const [withdrawStep, setWithdrawStep] = useState<'idle' | 'processing' | 'success'>('idle');
+  const [withdrawForm, setWithdrawForm] = useState({ amount: '', blockchain: 'Bitcoin', network: 'Bitcoin', destinationAddress: '' });
+
+  const CHAIN_CONFIG: Record<string, string[]> = {
+    'Bitcoin': ['Bitcoin'],
+    'Ethereum': ['ERC20', 'Arbitrum', 'Optimism'],
+    'Solana': ['Solana'],
+    'USDT/USDC': ['ERC20', 'TRC20', 'BEP20']
+  };
+
   // Chat State
   const [chatOpen, setChatOpen] = useState(false);
   const [chatMessages, setChatMessages] = useState<any[]>([
@@ -426,6 +438,22 @@ export default function Dashboard() {
     }
   };
 
+  const handleWithdraw = async () => {
+    if (parseFloat(withdrawForm.amount) < 100) {
+      alert('Minimum withdrawal amount is $100');
+      return;
+    }
+    setWithdrawStep('processing');
+    try {
+      await api.post('/withdrawals', withdrawForm);
+      setWithdrawStep('success');
+      fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Withdrawal failed');
+      setWithdrawStep('idle');
+    }
+  };
+
   const cryptoAssets = {
     btc: {
       label: 'Bitcoin (BTC)',
@@ -569,8 +597,9 @@ export default function Dashboard() {
                   </div>
                   <div>
                     <span className="vault-balance-label">Internal Balance</span>
-                    <div style={{ fontSize: '18px', marginTop: '4px' }}>
+                    <div style={{ fontSize: '18px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '16px' }}>
                       ${parseFloat(wallets.find(w => w.type === 'USD')?.balance || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                      <button className="vault-btn vault-btn-secondary" style={{ padding: '4px 12px', fontSize: '10px' }} onClick={() => setWithdrawModalOpen(true)}>Withdraw</button>
                     </div>
                   </div>
                 </div>
@@ -609,7 +638,11 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="vault-packages-row">
-                  {packages.slice(0, 3).map(pkg => (
+                  {[...packages].sort((a, b) => {
+                    if (a.type === 'gold' && b.type !== 'gold') return -1;
+                    if (a.type !== 'gold' && b.type === 'gold') return 1;
+                    return 0;
+                  }).slice(0, 3).map(pkg => (
                     <div key={pkg.id} className="vault-package-item">
                       <div className="vault-package-header-row">
                         <span className="vault-package-tag">{pkg.type}</span>
@@ -618,7 +651,7 @@ export default function Dashboard() {
                         {pkg.type === 'stocks' && <TrendingUp size={12} color="#ffffff" />}
                       </div>
                       <h4 className="vault-package-name">{pkg.name}</h4>
-                      <div className="vault-package-yield" style={{ color: pkg.yield?.startsWith('-') ? 'var(--danger)' : 'var(--success)' }}>
+                      <div className="vault-package-yield" style={{ color: pkg.yield?.toString().startsWith('-') ? 'var(--danger)' : 'var(--success)' }}>
                         {pkg.yield} <span style={{ fontSize: '10px', color: 'var(--muted)' }}>ROI</span>
                       </div>
                       <div className="vault-package-min">Min Investment: ${pkg.min_investment}</div>
@@ -640,7 +673,11 @@ export default function Dashboard() {
             <div className="vault-db-grid">
                <div id="tour-packages-grid" className="vault-card vault-card-packages">
                 <div className="vault-packages-row">
-                  {packages.map(pkg => (
+                  {[...packages].sort((a, b) => {
+                    if (a.type === 'gold' && b.type !== 'gold') return -1;
+                    if (a.type !== 'gold' && b.type === 'gold') return 1;
+                    return 0;
+                  }).map(pkg => (
                     <div key={pkg.id} className="vault-package-item">
                       <div className="vault-package-header-row">
                         <span className="vault-package-tag">{pkg.type}</span>
@@ -949,7 +986,6 @@ export default function Dashboard() {
                         <th>Email</th>
                         <th className="vault-table-hide-mobile">Date Joined</th>
                         <th>Investments</th>
-                        <th>Total Invested</th>
                         <th>Status</th>
                       </tr>
                     </thead>
@@ -960,7 +996,6 @@ export default function Dashboard() {
                           <td className="vault-table-email">{refUser.email}</td>
                           <td className="vault-table-hide-mobile" style={{ fontSize: '11px', color: 'var(--muted)' }}>{new Date(refUser.created_at).toLocaleDateString()}</td>
                           <td style={{ fontFamily: 'var(--font-mono)' }}>{refUser.investment_count || 0}</td>
-                          <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(refUser.total_invested || 0).toLocaleString()}</td>
                           <td>
                             <span className={`vault-status-tag ${refUser.investment_count > 0 ? 'active' : 'inactive'}`}>
                               {refUser.investment_count > 0 ? 'Active' : 'Joined'}
@@ -1582,6 +1617,65 @@ export default function Dashboard() {
           </button>
         )}
       </main>
+
+      {/* ═══════════ WITHDRAWAL MODAL ═══════════ */}
+      {withdrawModalOpen && (
+        <div className="vault-modal-overlay" data-open="true" onClick={(e) => e.target === e.currentTarget && setWithdrawModalOpen(false)}>
+          <div className="vault-auth-card" style={{ maxWidth: '400px' }}>
+            <button className="vault-modal-close" onClick={() => setWithdrawModalOpen(false)}>&times;</button>
+
+            {withdrawStep === 'idle' && (
+              <div className="reveal revealed">
+                <h3 className="vault-db-title" style={{ marginBottom: '8px' }}>Withdraw Funds</h3>
+                <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '24px' }}>
+                  Enter withdrawal details. Minimum amount is <strong>$100</strong>.
+                </div>
+                <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <input className="vault-input" type="number" placeholder="Amount ($)" value={withdrawForm.amount} onChange={(e) => setWithdrawForm({...withdrawForm, amount: e.target.value})} />
+
+                  <select 
+                    className="vault-input" 
+                    style={{ backgroundColor: 'var(--bg)', color: 'var(--fg)' }}
+                    value={withdrawForm.blockchain} 
+                    onChange={(e) => setWithdrawForm({ amount: withdrawForm.amount, blockchain: e.target.value, network: CHAIN_CONFIG[e.target.value][0], destinationAddress: withdrawForm.destinationAddress })}
+                  >
+                    {Object.keys(CHAIN_CONFIG).map(chain => <option key={chain}>{chain}</option>)}
+                  </select>
+
+                  <select 
+                    className="vault-input" 
+                    style={{ backgroundColor: 'var(--bg)', color: 'var(--fg)' }}
+                    value={withdrawForm.network} 
+                    onChange={(e) => setWithdrawForm({...withdrawForm, network: e.target.value})}
+                  >
+                    {CHAIN_CONFIG[withdrawForm.blockchain].map(net => <option key={net}>{net}</option>)}
+                  </select>
+
+                  <input className="vault-input" type="text" placeholder="Wallet Address" value={withdrawForm.destinationAddress} onChange={(e) => setWithdrawForm({...withdrawForm, destinationAddress: e.target.value})} />
+                  <button className="vault-btn vault-btn-primary" style={{ width: '100%' }} onClick={handleWithdraw}>Submit Request</button>
+                </div>
+              </div>
+            )}
+            {withdrawStep === 'processing' && (
+              <div className="reveal revealed" style={{ textAlign: 'center', padding: '40px 0' }}>
+                <div className="vault-institutional-loader" style={{ margin: '0 auto 20px' }} />
+                <h3 className="vault-db-title">Processing...</h3>
+              </div>
+            )}
+
+            {withdrawStep === 'success' && (
+              <div className="reveal revealed" style={{ textAlign: 'center', padding: '20px 0' }}>
+                <CheckCircle2 size={48} color="var(--success)" style={{ margin: '0 auto 20px' }} />
+                <h3 className="vault-db-title">Request Submitted</h3>
+                <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '12px', marginBottom: '24px' }}>
+                  Your withdrawal request for <strong>${withdrawForm.amount}</strong> is under review by the finance desk.
+                </p>
+                <button className="vault-btn vault-btn-secondary" style={{ width: '100%' }} onClick={() => { setWithdrawModalOpen(false); setWithdrawStep('idle'); }}>Close</button>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
 
       <DashboardTour 
         activeTab={activeTab}

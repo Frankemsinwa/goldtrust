@@ -1404,12 +1404,26 @@ function AppContent() {
     }, 5000)
   }, [])
 
+  const toastsShownRef = useRef(0)
+  const MAX_TOASTS = 3
+
   useEffect(() => {
     const timer = setTimeout(() => {
-      addToast()
-      const interval = setInterval(addToast, 8000)
-      return () => clearInterval(interval)
-    }, 3000)
+      if (toastsShownRef.current < MAX_TOASTS) {
+        addToast()
+        toastsShownRef.current += 1
+
+        const interval = setInterval(() => {
+          if (toastsShownRef.current < MAX_TOASTS) {
+            addToast()
+            toastsShownRef.current += 1
+          } else {
+            clearInterval(interval)
+          }
+        }, 15000)
+        return () => clearInterval(interval)
+      }
+    }, 10000)
     return () => clearTimeout(timer)
   }, [addToast])
 
@@ -1477,6 +1491,13 @@ function AppContent() {
                 <path d="M12.012 2c-5.506 0-9.989 4.478-9.99 9.984a9.96 9.96 0 001.37 5.054L2 22l5.077-1.331a9.923 9.923 0 004.93 1.315h.005c5.505 0 9.988-4.478 9.99-9.984 0-2.667-1.037-5.176-2.924-7.062C17.191 3.053 14.682 2.001 12.012 2zm6.39 14.159c-.282.793-1.397 1.455-1.921 1.549-.472.085-1.089.158-3.176-.71-2.667-1.111-4.364-3.824-4.498-4.002-.132-.177-1.077-1.431-1.077-2.729 0-1.298.674-1.936.915-2.195.241-.259.527-.324.703-.324.176 0 .352.001.506.008.16.007.375-.061.587.452.219.53.748 1.821.813 1.953.065.132.109.287.021.462-.088.175-.132.287-.264.441-.132.155-.278.347-.396.466-.132.132-.27.276-.117.538.153.262.68 1.118 1.456 1.809.999.892 1.841 1.168 2.105 1.299.264.131.417.109.571-.066.154-.175.66-.766.837-1.028.176-.263.352-.219.594-.131.242.088 1.539.726 1.803.858.264.131.44.197.506.307.066.11.066.634-.216 1.427z"/>
               </svg>
               Direct WhatsApp Support
+            </a>
+            <a href="mailto:goldtrustimperialholdings@gmail.com" className="vault-footer-link" style={{ display: 'inline-flex', alignItems: 'center', gap: '6px', color: 'var(--muted)', textDecoration: 'none', transition: 'color 0.15s ease' }}>
+              <svg viewBox="0 0 24 24" width="14" height="14" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                <path d="M4 4h16c1.1 0 2 .9 2 2v12c0 1.1-.9 2-2 2H4c-1.1 0-2-.9-2-2V6c0-1.1.9-2 2-2z"></path>
+                <polyline points="22,6 12,13 2,6"></polyline>
+              </svg>
+              goldtrustimperialholdings@gmail.com
             </a>
           </div>
         </div>

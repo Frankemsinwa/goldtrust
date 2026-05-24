@@ -197,6 +197,29 @@ const toggleUserBlock = async (req, res) => {
     }
 };
 
+const getAdminPackages = async (req, res) => {
+    try {
+        const result = await query('SELECT * FROM investment_packages ORDER BY min_investment ASC');
+        res.json(result.rows);
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to fetch packages', message: err.message });
+    }
+};
+
+const updatePackage = async (req, res) => {
+    const { id } = req.params;
+    const { name, min_investment, yield: yieldRate, description, type } = req.body;
+    try {
+        await query(
+            'UPDATE investment_packages SET name = $1, min_investment = $2, yield = $3, description = $4, type = $5 WHERE id = $6',
+            [name, min_investment, yieldRate, description, type, id]
+        );
+        res.json({ message: 'Package updated successfully' });
+    } catch (err) {
+        res.status(500).json({ error: 'Failed to update package', message: err.message });
+    }
+};
+
 module.exports = { 
     getAdminStats, 
     getAdminUsers, 
@@ -207,5 +230,7 @@ module.exports = {
     getAdminChats, 
     replyToChat,
     getAdminChatHistory,
-    toggleUserBlock
+    toggleUserBlock,
+    getAdminPackages,
+    updatePackage
 };
