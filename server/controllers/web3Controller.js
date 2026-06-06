@@ -42,7 +42,7 @@ const verifyTransaction = async (req, res) => {
     if (!req.body) {
         return res.status(400).json({ error: 'Request body required' });
     }
-    const { txHash, packageId, amount } = req.body;
+    const { txHash, packageId, amount, duration = 12 } = req.body;
 
     if (!txHash || !packageId || !amount) {
         return res.status(400).json({ error: 'Missing transaction details' });
@@ -82,9 +82,12 @@ const verifyTransaction = async (req, res) => {
             [req.user.id, 'INVESTMENT', amount, 'completed', JSON.stringify({ txHash, blockNumber: receipt.blockNumber })]
         );
 
+        const lockUpUntil = new Date();
+        lockUpUntil.setMonth(lockUpUntil.getMonth() + parseInt(duration));
+
         await query(
-            'INSERT INTO investments (user_id, package_id, amount, status) VALUES ($1, $2, $3, $4)',
-            [req.user.id, packageId, amount, 'active']
+            'INSERT INTO investments (user_id, package_id, amount, status, duration_months, lock_up_until) VALUES ($1, $2, $3, $4, $5, $6)',
+            [req.user.id, packageId, amount, 'active', duration, lockUpUntil]
         );
 
         // Fetch package name for referral metadata

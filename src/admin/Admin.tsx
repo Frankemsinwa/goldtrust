@@ -39,6 +39,7 @@ export default function Admin() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [editingPackage, setEditingPackage] = useState<any>(null);
+  const [viewingProof, setViewingProof] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const activeChat = chats.find(c => c.user_id === selectedChat);
@@ -70,10 +71,22 @@ export default function Admin() {
         api.get('/admin/chats'),
         api.get('/admin/packages')
       ]);
-      setStats(statsRes.data);
+
+      // Parse metadata for transactions if it's a string
+      const parseMeta = (data: any[]) => data.map(item => ({
+        ...item,
+        metadata: typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata
+      }));
+
+      const processedStats = {
+        ...statsRes.data,
+        recentActivity: parseMeta(statsRes.data.recentActivity || [])
+      };
+
+      setStats(processedStats);
       setUsers(usersRes.data);
       setInvestments(invRes.data);
-      setTransactions(txRes.data);
+      setTransactions(parseMeta(txRes.data));
       setChats(chatsRes.data);
       setPackages(pkgsRes.data);
     } catch (err) {
@@ -212,7 +225,18 @@ export default function Admin() {
                 <div className="admin-panel-body">
                   {(stats?.recentActivity || []).map((a: any, i: number) => (
                     <div key={i} style={{ padding: '12px 24px', borderBottom: '0.5px solid oklch(20% 0.01 250)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13 }}>{a.full_name} performed {a.type.toLowerCase()} of ${parseFloat(a.amount).toLocaleString()}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13 }}>{a.full_name} performed {a.type.toLowerCase()} of ${parseFloat(a.amount).toLocaleString()}</span>
+                        {a.metadata?.proofImageUrl && (
+                          <button 
+                            className="admin-action-btn" 
+                            style={{ padding: '2px 8px', fontSize: 10 }}
+                            onClick={() => setViewingProof(a.metadata.proofImageUrl.startsWith('http') ? a.metadata.proofImageUrl : `${api.defaults.baseURL?.replace('/api', '') || ''}${a.metadata.proofImageUrl}`)}
+                          >
+                            View Proof
+                          </button>
+                        )}
+                      </div>
                       <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', flexShrink: 0, marginLeft: 16 }}>{new Date(a.created_at).toLocaleTimeString()}</span>
                     </div>
                   ))}
@@ -339,11 +363,36 @@ export default function Admin() {
                         <td><span style={{ fontSize: 10, color: 'var(--accent)', textTransform: 'uppercase' }}>{tx.type}</span></td>
                         <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(tx.amount).toLocaleString()}</td>
                         <td style={{ fontSize: 11, color: 'var(--muted)' }}>
-                          {tx.metadata?.method && <span>Method: {tx.metadata.method.toUpperCase()}</span>}
-                          {tx.metadata?.proof && <div style={{ wordBreak: 'break-all' }}>Proof: {tx.metadata.proof}</div>}
+                          {tx.metadata?.method && <div>Method: <span style={{ color: 'var(--fg)', textTransform: 'uppercase' }}>{tx.metadata.method}</span></div>}
+                          {tx.metadata?.proof && <div style={{ wordBreak: 'break-all', marginTop: 2 }}>Proof: {tx.metadata.proof}</div>}
+                          {tx.metadata?.proofImageUrl && (
+                            <div 
+                              style={{ 
+                                marginTop: 8, 
+                                cursor: 'pointer', 
+                                border: '1px solid var(--border)', 
+                                borderRadius: 4, 
+                                overflow: 'hidden', 
+                                width: 80, 
+                                height: 50,
+                                background: 'var(--bg)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onClick={() => setViewingProof(tx.metadata.proofImageUrl.startsWith('http') ? tx.metadata.proofImageUrl : `${api.defaults.baseURL?.replace('/api', '') || ''}${tx.metadata.proofImageUrl}`)}
+                              title="Click to expand"
+                            >
+                              <img 
+                                src={tx.metadata.proofImageUrl.startsWith('http') ? tx.metadata.proofImageUrl : `${api.defaults.baseURL?.replace('/api', '') || ''}${tx.metadata.proofImageUrl}`} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                alt="Proof" 
+                              />
+                            </div>
+                          )}
                           {tx.type === 'WITHDRAWAL' && tx.metadata && (
                             <div style={{ marginTop: '4px' }}>
-                              <div>{tx.metadata.blockchain} ({tx.metadata.network})</div>
+                              <div style={{ color: 'var(--accent)' }}>{tx.metadata.blockchain} ({tx.metadata.network})</div>
                               <div style={{ wordBreak: 'break-all', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{tx.metadata.destinationAddress}</div>
                             </div>
                           )}
@@ -351,6 +400,14 @@ export default function Admin() {
                         <td style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(tx.created_at).toLocaleDateString()}</td>
                         <td><span className={`admin-status ${tx.status}`}>{tx.status}</span></td>
                         <td style={{ textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          {tx.metadata?.proofImageUrl && (
+                            <button
+                              className="admin-action-btn"
+                              onClick={() => setViewingProof(tx.metadata.proofImageUrl.startsWith('http') ? tx.metadata.proofImageUrl : `${api.defaults.baseURL?.replace('/api', '') || ''}${tx.metadata.proofImageUrl}`)}
+                            >
+                              <Eye size={14} />
+                            </button>
+                          )}
                           {tx.status === 'pending' && (<>
                             <button className="admin-action-btn" onClick={() => handleApproveTransaction(tx.id, 'completed')}><CheckCircle2 size={14} /></button>
                             <button className="admin-action-btn danger" onClick={() => handleApproveTransaction(tx.id, 'rejected')}><Ban size={14} /></button>
@@ -535,6 +592,68 @@ export default function Admin() {
               <button className="vault-btn vault-btn-secondary" onClick={() => setEditingPackage(null)}>Cancel</button>
               <button className="vault-btn vault-btn-primary" onClick={handleUpdatePackage}>Save Changes</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {viewingProof && (
+        <div
+          className="admin-modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setViewingProof(null)}
+        >
+          <div
+            className="admin-modal"
+            style={{
+              maxWidth: '90%',
+              maxHeight: '90%',
+              position: 'relative',
+              padding: '10px',
+              backgroundColor: 'var(--surface)',
+              borderRadius: '8px',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              style={{
+                position: 'absolute',
+                right: -15,
+                top: -15,
+                background: 'var(--accent)',
+                border: 'none',
+                color: '#000',
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                fontSize: 20,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold'
+              }}
+              onClick={() => setViewingProof(null)}
+            >
+              &times;
+            </button>
+            <img
+              src={viewingProof}
+              alt="Proof"
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
+            />
           </div>
         </div>
       )}

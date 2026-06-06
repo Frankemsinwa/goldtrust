@@ -54,6 +54,7 @@ CREATE TABLE IF NOT EXISTS investments (
     package_id INTEGER REFERENCES investment_packages(id),
     amount DECIMAL(20, 2) NOT NULL,
     status VARCHAR(50) DEFAULT 'pending',
+    duration_months INTEGER DEFAULT 12,
     lock_up_until TIMESTAMP,
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
@@ -95,6 +96,12 @@ const initDb = async () => {
         await query(`
             ALTER TABLE users ADD COLUMN IF NOT EXISTS referral_code VARCHAR(50) UNIQUE;
             ALTER TABLE users ADD COLUMN IF NOT EXISTS referred_by INTEGER REFERENCES users(id) ON DELETE SET NULL;
+        `);
+
+        // Migration: Add duration_months to investments if it doesn't exist
+        await query(`
+            ALTER TABLE investments ADD COLUMN IF NOT EXISTS duration_months INTEGER DEFAULT 12;
+            ALTER TABLE investments ADD COLUMN IF NOT EXISTS lock_up_until TIMESTAMP;
         `);
 
         // Seed/Backfill existing users who don't have a referral code

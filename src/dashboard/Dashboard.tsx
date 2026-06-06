@@ -61,6 +61,7 @@ export default function Dashboard() {
   const [investStep, setInvestStep] = useState<'idle' | 'input' | 'confirming' | 'processing' | 'success'>('idle');
   const [selectedPkg, setSelectedPkg] = useState<any>(null);
   const [investAmount, setInvestAmount] = useState('');
+  const [investDuration, setInvestDuration] = useState('12');
   const [riskAccepted, setRiskAccepted] = useState(false);
   const [investPaymentMethod, setInvestPaymentMethod] = useState<'web3' | 'internal' | null>(null);
   const [] = useState('');
@@ -71,6 +72,7 @@ export default function Dashboard() {
   const [depositMethod, setDepositMethod] = useState<'bank' | 'wise' | 'crypto' | 'card' | null>(null);
   const [depositAmount, setDepositAmount] = useState('');
   const [depositProof, setDepositProof] = useState('');
+  const [depositProofFile, setDepositProofFile] = useState<File | null>(null);
   const [isCopied, setIsCopied] = useState(false);
   const [selectedCrypto, setSelectedCrypto] = useState<'btc' | 'eth' | 'sol' | 'usdt'>('btc');
 
@@ -306,7 +308,8 @@ export default function Dashboard() {
           await api.post('/wallet/verify-tx', {
             txHash: hash,
             packageId: selectedPkg.id,
-            amount: investAmount
+            amount: investAmount,
+            duration: investDuration
           });
           setInvestStep('success');
           fetchData();
@@ -330,6 +333,7 @@ export default function Dashboard() {
     setSelectedPkg(pkg);
     setInvestStep('input');
     setInvestAmount(pkg.min_investment.toString());
+    setInvestDuration('12');
     setInvestError('');
     setInvestPaymentMethod(null);
   };
@@ -374,7 +378,8 @@ export default function Dashboard() {
     try {
       await api.post('/investments', {
         packageId: selectedPkg.id,
-        amount: investAmount
+        amount: investAmount,
+        duration: investDuration
       });
       setInvestStep('success');
       fetchData();
@@ -404,6 +409,7 @@ export default function Dashboard() {
     setDepositMethod(null);
     setDepositAmount('');
     setDepositProof('');
+    setDepositProofFile(null);
     setSelectedCrypto('btc');
     localStorage.removeItem('pendingDepositMethod');
     localStorage.removeItem('pendingDepositAmount');
@@ -420,14 +426,22 @@ export default function Dashboard() {
   const handleDepositSubmit = async () => {
     setDepositStep('processing');
     try {
-      await api.post('/transactions', {
-        type: 'DEPOSIT',
-        amount: depositAmount,
-        status: 'pending',
-        metadata: {
-          method: depositMethod,
-          proof: depositProof,
-          cryptoCurrency: selectedCrypto
+      const formData = new FormData();
+      formData.append('type', 'DEPOSIT');
+      formData.append('amount', depositAmount);
+      formData.append('status', 'pending');
+      formData.append('metadata', JSON.stringify({
+        method: depositMethod,
+        proof: depositProof,
+        cryptoCurrency: selectedCrypto
+      }));
+      if (depositProofFile) {
+        formData.append('proofImage', depositProofFile);
+      }
+
+      await api.post('/transactions', formData, {
+        headers: {
+          'Content-Type': 'multipart/form-data'
         }
       });
       setDepositStep('success');
@@ -1104,11 +1118,26 @@ export default function Dashboard() {
                     </div>
                   </div>
 
+                  <div className="vault-input-group" style={{ marginTop: '20px' }}>
+                    <label className="vault-balance-label">Lock-up Duration</label>
+                    <select
+                      className="vault-input"
+                      value={investDuration}
+                      onChange={(e) => setInvestDuration(e.target.value)}
+                      style={{ backgroundColor: 'var(--bg)', color: 'var(--fg)' }}
+                    >
+                      <option value="1">1 Month</option>
+                      <option value="3">3 Months</option>
+                      <option value="6">6 Months</option>
+                      <option value="12">12 Months</option>
+                    </select>
+                  </div>
+
                   <div className="vault-card" style={{ background: 'var(--surface)', padding: '20px', borderRadius: '4px', margin: '24px 0', border: '0.5px solid var(--border)' }}>
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <AlertCircle size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
                       <div style={{ fontSize: '12px', color: 'var(--fg)', lineHeight: 1.5 }}>
-                        By proceeding, you acknowledge the risk of capital fluctuations and agree to the 12-month lock-up period for institutional yield optimization.
+                        By proceeding, you acknowledge the risk of capital fluctuations and agree to the {investDuration}-month lock-up period for institutional yield optimization.
                       </div>
                     </div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '16px', cursor: 'pointer', userSelect: 'none' }}>
@@ -1450,6 +1479,39 @@ export default function Dashboard() {
                     />
                   </div>
 
+                  <div className="vault-input-group" style={{ marginTop: '20px' }}>
+                    <label className="vault-balance-label">Payment Screenshot (Optional)</label>
+                    <div style={{ position: 'relative', marginTop: '8px' }}>
+                      <input
+                        type="file"
+                        accept="image/*"
+                        onChange={(e) => setDepositProofFile(e.target.files?.[0] || null)}
+                        style={{ display: 'none' }}
+                        id="deposit-proof-file"
+                      />
+                      <label
+                        htmlFor="deposit-proof-file"
+                        className="vault-input"
+                        style={{
+                          display: 'flex',
+                          alignItems: 'center',
+                          gap: '12px',
+                          cursor: 'pointer',
+                          background: 'var(--surface)',
+                          border: '1px dashed var(--border)',
+                          padding: '12px'
+                        }}
+                      >
+                        <div style={{ background: 'rgba(212,175,55,0.1)', padding: '8px', borderRadius: '4px' }}>
+                          <Gem size={16} color="var(--accent)" />
+                        </div>
+                        <div style={{ flex: 1, overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
+                          {depositProofFile ? depositProofFile.name : 'Click to upload proof image'}
+                        </div>
+                      </label>
+                    </div>
+                  </div>
+
                   <button 
                     className="vault-btn vault-btn-primary" 
                     style={{ width: '100%', marginTop: '32px' }}
@@ -1480,8 +1542,10 @@ export default function Dashboard() {
                     <CheckCircle2 size={48} color="var(--accent)" />
                   </div>
                   <h3 className="vault-db-title">Request Submitted</h3>
-                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '12px', marginBottom: '32px' }}>
+                  <p style={{ color: 'var(--muted)', fontSize: '14px', marginTop: '12px', marginBottom: '32px', lineHeight: '1.6' }}>
                     Your deposit of <strong>${depositAmount}</strong> via <strong>{depositMethod?.toUpperCase()}</strong> is pending verification. Most deposits are processed within 1-2 hours.
+                    <br /><br />
+                    If approval exceeds 1-2 hours, please contact the admin via <a href="https://wa.me/447346896494" target="_blank" rel="noopener noreferrer" style={{ color: 'var(--accent)', textDecoration: 'underline' }}>WhatsApp (Click to Chat)</a>.
                   </p>
                   <button className="vault-btn vault-btn-secondary" style={{ width: '100%' }} onClick={closeDeposit}>
                     View History

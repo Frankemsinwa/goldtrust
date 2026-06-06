@@ -65,7 +65,7 @@ const getInvestments = async (req, res) => {
 };
 
 const createInvestment = async (req, res) => {
-    const { packageId, amount } = req.body;
+    const { packageId, amount, duration = 12 } = req.body;
 
     try {
         // 1. Validate package
@@ -95,9 +95,12 @@ const createInvestment = async (req, res) => {
             [amount, walletResult.rows[0].id]
         );
 
+        const lockUpUntil = new Date();
+        lockUpUntil.setMonth(lockUpUntil.getMonth() + parseInt(duration));
+
         const invResult = await query(
-            'INSERT INTO investments (user_id, package_id, amount, status) VALUES ($1, $2, $3, $4) RETURNING *',
-            [req.user.id, packageId, amount, 'active']
+            'INSERT INTO investments (user_id, package_id, amount, status, duration_months, lock_up_until) VALUES ($1, $2, $3, $4, $5, $6) RETURNING *',
+            [req.user.id, packageId, amount, 'active', duration, lockUpUntil]
         );
 
         await query(
@@ -187,7 +190,21 @@ const getTransactions = async (req, res) => {
 };
 
 const createTransaction = async (req, res) => {
-    const { type, amount, status, metadata } = req.body;
+    let { type, amount, status, metadata } = req.body;
+
+    // Handle multipart form data if metadata is sent as a string
+    if (typeof metadata === 'string') {
+        try {
+            metadata = JSON.parse(metadata);
+        } catch (e) {
+            metadata = {};
+        }
+    }
+
+    if (req.file) {
+        metadata = { ...metadata, proofImageUrl: req.file.path || req.file.secure_url };
+    }
+
     try {
         const result = await query(
             'INSERT INTO transactions (user_id, type, amount, status, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
