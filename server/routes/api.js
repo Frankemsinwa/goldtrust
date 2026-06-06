@@ -5,6 +5,7 @@ const { getProfile, updateKyc, getUserChat, sendChatMessage, sendSupportMessage 
 const { getReferralStats } = require('../controllers/referralController');
 const { linkWallet, verifyTransaction } = require('../controllers/web3Controller');
 const { getPackages, getWallets, getInvestments, createInvestment, requestWithdrawal, getTransactions, createTransaction, getMarketData, getPortfolioPerformance } = require('../controllers/financeController');
+const upload = require('../utils/upload');
 const { 
     getAdminStats, 
     getAdminUsers, 
@@ -241,7 +242,7 @@ router.post('/withdrawals', authMiddleware, requestWithdrawal);
  *     security: [{bearerAuth: []}]
  */
 router.get('/transactions', authMiddleware, getTransactions);
-router.post('/transactions', authMiddleware, createTransaction);
+router.post('/transactions', authMiddleware, upload.single('proofImage'), createTransaction);
 
 // Admin routes (Protected + Admin Only)
 /**

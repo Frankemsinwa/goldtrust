@@ -26,6 +26,9 @@ app.use(morgan('dev'));
 // Documentation
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(specs));
 
+// Serve static files from public directory
+app.use(express.static('public'));
+
 // Routes
 app.use('/api', apiRoutes);
 

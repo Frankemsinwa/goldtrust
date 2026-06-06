@@ -39,6 +39,7 @@ export default function Admin() {
   const [transactions, setTransactions] = useState<any[]>([]);
   const [packages, setPackages] = useState<any[]>([]);
   const [editingPackage, setEditingPackage] = useState<any>(null);
+  const [viewingProof, setViewingProof] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
 
   const activeChat = chats.find(c => c.user_id === selectedChat);
@@ -351,6 +352,14 @@ export default function Admin() {
                         <td style={{ fontSize: 12, color: 'var(--muted)' }}>{new Date(tx.created_at).toLocaleDateString()}</td>
                         <td><span className={`admin-status ${tx.status}`}>{tx.status}</span></td>
                         <td style={{ textAlign: 'right', display: 'flex', gap: 8, justifyContent: 'flex-end' }}>
+                          {tx.metadata?.proofImageUrl && (
+                            <button
+                              className="admin-action-btn"
+                              onClick={() => setViewingProof(`${api.defaults.baseURL?.replace('/api', '') || ''}${tx.metadata.proofImageUrl}`)}
+                            >
+                              <Eye size={14} />
+                            </button>
+                          )}
                           {tx.status === 'pending' && (<>
                             <button className="admin-action-btn" onClick={() => handleApproveTransaction(tx.id, 'completed')}><CheckCircle2 size={14} /></button>
                             <button className="admin-action-btn danger" onClick={() => handleApproveTransaction(tx.id, 'rejected')}><Ban size={14} /></button>
@@ -535,6 +544,68 @@ export default function Admin() {
               <button className="vault-btn vault-btn-secondary" onClick={() => setEditingPackage(null)}>Cancel</button>
               <button className="vault-btn vault-btn-primary" onClick={handleUpdatePackage}>Save Changes</button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {viewingProof && (
+        <div
+          className="admin-modal-overlay"
+          style={{
+            position: 'fixed',
+            top: 0,
+            left: 0,
+            right: 0,
+            bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.85)',
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            zIndex: 9999,
+            padding: '20px'
+          }}
+          onClick={() => setViewingProof(null)}
+        >
+          <div
+            className="admin-modal"
+            style={{
+              maxWidth: '90%',
+              maxHeight: '90%',
+              position: 'relative',
+              padding: '10px',
+              backgroundColor: 'var(--surface)',
+              borderRadius: '8px',
+              boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              style={{
+                position: 'absolute',
+                right: -15,
+                top: -15,
+                background: 'var(--accent)',
+                border: 'none',
+                color: '#000',
+                width: 30,
+                height: 30,
+                borderRadius: '50%',
+                fontSize: 20,
+                cursor: 'pointer',
+                display: 'flex',
+                alignItems: 'center',
+                justifyContent: 'center',
+                fontWeight: 'bold'
+              }}
+              onClick={() => setViewingProof(null)}
+            >
+              &times;
+            </button>
+            <img
+              src={viewingProof}
+              alt="Proof"
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
+            />
           </div>
         </div>
       )}
