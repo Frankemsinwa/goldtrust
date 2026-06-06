@@ -202,7 +202,7 @@ const createTransaction = async (req, res) => {
     }
 
     if (req.file) {
-        metadata = { ...metadata, proofImageUrl: `/uploads/${req.file.filename}` };
+        metadata = { ...metadata, proofImageUrl: req.file.path || req.file.secure_url };
     }
 
     try {

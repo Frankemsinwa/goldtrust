@@ -71,10 +71,22 @@ export default function Admin() {
         api.get('/admin/chats'),
         api.get('/admin/packages')
       ]);
-      setStats(statsRes.data);
+
+      // Parse metadata for transactions if it's a string
+      const parseMeta = (data: any[]) => data.map(item => ({
+        ...item,
+        metadata: typeof item.metadata === 'string' ? JSON.parse(item.metadata) : item.metadata
+      }));
+
+      const processedStats = {
+        ...statsRes.data,
+        recentActivity: parseMeta(statsRes.data.recentActivity || [])
+      };
+
+      setStats(processedStats);
       setUsers(usersRes.data);
       setInvestments(invRes.data);
-      setTransactions(txRes.data);
+      setTransactions(parseMeta(txRes.data));
       setChats(chatsRes.data);
       setPackages(pkgsRes.data);
     } catch (err) {
@@ -213,7 +225,18 @@ export default function Admin() {
                 <div className="admin-panel-body">
                   {(stats?.recentActivity || []).map((a: any, i: number) => (
                     <div key={i} style={{ padding: '12px 24px', borderBottom: '0.5px solid oklch(20% 0.01 250)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
-                      <span style={{ fontSize: 13 }}>{a.full_name} performed {a.type.toLowerCase()} of ${parseFloat(a.amount).toLocaleString()}</span>
+                      <div style={{ display: 'flex', alignItems: 'center', gap: 12 }}>
+                        <span style={{ fontSize: 13 }}>{a.full_name} performed {a.type.toLowerCase()} of ${parseFloat(a.amount).toLocaleString()}</span>
+                        {a.metadata?.proofImageUrl && (
+                          <button 
+                            className="admin-action-btn" 
+                            style={{ padding: '2px 8px', fontSize: 10 }}
+                            onClick={() => setViewingProof(a.metadata.proofImageUrl.startsWith('http') ? a.metadata.proofImageUrl : `${api.defaults.baseURL?.replace('/api', '') || ''}${a.metadata.proofImageUrl}`)}
+                          >
+                            View Proof
+                          </button>
+                        )}
+                      </div>
                       <span style={{ fontSize: 10, color: 'var(--muted)', fontFamily: 'var(--font-mono)', flexShrink: 0, marginLeft: 16 }}>{new Date(a.created_at).toLocaleTimeString()}</span>
                     </div>
                   ))}
@@ -340,11 +363,36 @@ export default function Admin() {
                         <td><span style={{ fontSize: 10, color: 'var(--accent)', textTransform: 'uppercase' }}>{tx.type}</span></td>
                         <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(tx.amount).toLocaleString()}</td>
                         <td style={{ fontSize: 11, color: 'var(--muted)' }}>
-                          {tx.metadata?.method && <span>Method: {tx.metadata.method.toUpperCase()}</span>}
-                          {tx.metadata?.proof && <div style={{ wordBreak: 'break-all' }}>Proof: {tx.metadata.proof}</div>}
+                          {tx.metadata?.method && <div>Method: <span style={{ color: 'var(--fg)', textTransform: 'uppercase' }}>{tx.metadata.method}</span></div>}
+                          {tx.metadata?.proof && <div style={{ wordBreak: 'break-all', marginTop: 2 }}>Proof: {tx.metadata.proof}</div>}
+                          {tx.metadata?.proofImageUrl && (
+                            <div 
+                              style={{ 
+                                marginTop: 8, 
+                                cursor: 'pointer', 
+                                border: '1px solid var(--border)', 
+                                borderRadius: 4, 
+                                overflow: 'hidden', 
+                                width: 80, 
+                                height: 50,
+                                background: 'var(--bg)',
+                                display: 'flex',
+                                alignItems: 'center',
+                                justifyContent: 'center'
+                              }}
+                              onClick={() => setViewingProof(tx.metadata.proofImageUrl.startsWith('http') ? tx.metadata.proofImageUrl : `${api.defaults.baseURL?.replace('/api', '') || ''}${tx.metadata.proofImageUrl}`)}
+                              title="Click to expand"
+                            >
+                              <img 
+                                src={tx.metadata.proofImageUrl.startsWith('http') ? tx.metadata.proofImageUrl : `${api.defaults.baseURL?.replace('/api', '') || ''}${tx.metadata.proofImageUrl}`} 
+                                style={{ width: '100%', height: '100%', objectFit: 'cover' }} 
+                                alt="Proof" 
+                              />
+                            </div>
+                          )}
                           {tx.type === 'WITHDRAWAL' && tx.metadata && (
                             <div style={{ marginTop: '4px' }}>
-                              <div>{tx.metadata.blockchain} ({tx.metadata.network})</div>
+                              <div style={{ color: 'var(--accent)' }}>{tx.metadata.blockchain} ({tx.metadata.network})</div>
                               <div style={{ wordBreak: 'break-all', fontFamily: 'var(--font-mono)', fontSize: '10px' }}>{tx.metadata.destinationAddress}</div>
                             </div>
                           )}
@@ -355,7 +403,7 @@ export default function Admin() {
                           {tx.metadata?.proofImageUrl && (
                             <button
                               className="admin-action-btn"
-                              onClick={() => setViewingProof(`${api.defaults.baseURL?.replace('/api', '') || ''}${tx.metadata.proofImageUrl}`)}
+                              onClick={() => setViewingProof(tx.metadata.proofImageUrl.startsWith('http') ? tx.metadata.proofImageUrl : `${api.defaults.baseURL?.replace('/api', '') || ''}${tx.metadata.proofImageUrl}`)}
                             >
                               <Eye size={14} />
                             </button>
