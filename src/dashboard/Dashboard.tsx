@@ -188,6 +188,17 @@ export default function Dashboard() {
     setChartTimeframe('1H');
   };
 
+  const handleClaimInvestment = async (inv: any) => {
+    if (!window.confirm(`Claim matured investment ${inv.package_name}? The principal plus accrued ROI will be credited to your USD wallet.`)) return;
+    try {
+      await api.post(`/investments/${inv.id}/claim`);
+      alert('Investment claimed. Funds credited to your USD wallet.');
+      fetchData();
+    } catch (err: any) {
+      alert(err.response?.data?.error || 'Failed to claim investment');
+    }
+  };
+
   useEffect(() => {
     fetchData();
     
@@ -602,20 +613,23 @@ export default function Dashboard() {
                   </div>
                   <TrendingUp size={24} color="var(--success)" />
                 </div>
-                <div style={{ display: 'flex', gap: '32px', marginTop: 'auto' }}>
-                  <div>
+                <div className="vault-balance-stats">
+                  <div className="vault-balance-stat">
                     <span className="vault-balance-label">Total Profit</span>
-                    <div style={{ fontSize: '18px', marginTop: '4px', color: totalProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
+                    <div className="vault-balance-stat-value" style={{ color: totalProfit >= 0 ? 'var(--success)' : 'var(--danger)' }}>
                       {totalProfit >= 0 ? '+' : '-'}${Math.abs(totalProfit).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
                     </div>
                   </div>
-                  <div>
+                  <div className="vault-balance-stat">
                     <span className="vault-balance-label">Internal Balance</span>
-                    <div style={{ fontSize: '18px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '16px' }}>
+                    <div className="vault-balance-stat-value">
                       ${parseFloat(wallets.find(w => w.type === 'USD')?.balance || '0').toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
-                      <button className="vault-btn vault-btn-secondary" style={{ padding: '4px 12px', fontSize: '10px' }} onClick={() => setWithdrawModalOpen(true)}>Withdraw</button>
                     </div>
                   </div>
+                  <button className="vault-btn vault-btn-withdraw" onClick={() => setWithdrawModalOpen(true)}>
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"><path d="M12 5v14M5 12l7 7 7-7"/></svg>
+                    WITHDRAW
+                  </button>
                 </div>
               </div>
 
@@ -665,10 +679,10 @@ export default function Dashboard() {
                         {pkg.type === 'stocks' && <TrendingUp size={12} color="#ffffff" />}
                       </div>
                       <h4 className="vault-package-name">{pkg.name}</h4>
-                      <div className="vault-package-yield" style={{ color: pkg.yield?.toString().startsWith('-') ? 'var(--danger)' : 'var(--success)' }}>
-                        {pkg.yield} <span style={{ fontSize: '10px', color: 'var(--muted)' }}>ROI</span>
+                      <div className="vault-package-yield" style={{ color: 'var(--success)' }}>
+                        {pkg.yield} <span style={{ fontSize: '10px', color: 'var(--muted)' }}>TOTAL ROI</span>
                       </div>
-                      <div className="vault-package-min">Min Investment: ${pkg.min_investment}</div>
+                      <div className="vault-package-min">Range: ${parseFloat(pkg.min_investment).toLocaleString()} – ${parseFloat(pkg.max_investment || pkg.min_investment).toLocaleString()}</div>
                       <button 
                         className="vault-btn vault-btn-primary" 
                         style={{ width: '100%', marginTop: '16px', padding: '10px', fontSize: '10px' }}
@@ -700,8 +714,8 @@ export default function Dashboard() {
                         {pkg.type === 'stocks' && <TrendingUp size={12} color="#ffffff" />}
                       </div>
                       <h4 className="vault-package-name">{pkg.name}</h4>
-                      <div className="vault-package-yield" style={{ color: pkg.yield?.startsWith('-') ? 'var(--danger)' : 'var(--success)' }}>{pkg.yield}</div>
-                      <div className="vault-package-min">Min Investment: ${pkg.min_investment}</div>
+                      <div className="vault-package-yield" style={{ color: 'var(--success)' }}>{pkg.yield} <span style={{ fontSize: '10px', color: 'var(--muted)' }}>TOTAL ROI</span></div>
+                      <div className="vault-package-min">Range: ${parseFloat(pkg.min_investment).toLocaleString()} – ${parseFloat(pkg.max_investment || pkg.min_investment).toLocaleString()}</div>
                       <button 
                         className="vault-btn vault-btn-primary" 
                         style={{ width: '100%', marginTop: '20px', padding: '10px' }}
@@ -724,34 +738,44 @@ export default function Dashboard() {
                     <thead>
                       <tr>
                         <th>Asset</th>
-                        <th>Balance</th>
-                        <th>Value (USD)</th>
-                        <th>24h Change</th>
+                        <th>Status</th>
+                        <th>Current Value</th>
+                        <th>Accrued ROI</th>
                         <th style={{ textAlign: 'right' }}>Actions</th>
                       </tr>
                     </thead>
                     <tbody>
-                      {investments.map(inv => (
-                        <tr key={inv.id}>
-                          <td>
-                            <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
-                              <div style={{ width: 8, height: 8, background: inv.package_type === 'crypto' ? 'var(--accent)' : '#f3ba2f' }} />
-                              <div>
-                                <div style={{ fontWeight: 500 }}>{inv.package_name}</div>
-                                <div style={{ fontSize: '10px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{inv.package_type.toUpperCase()}</div>
+                      {investments.map(inv => {
+                        const isMatured = inv.is_matured;
+                        return (
+                          <tr key={inv.id}>
+                            <td>
+                              <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
+                                <div style={{ width: 8, height: 8, background: inv.package_type === 'crypto' ? 'var(--accent)' : '#f3ba2f' }} />
+                                <div>
+                                  <div style={{ fontWeight: 500 }}>{inv.package_name}</div>
+                                  <div style={{ fontSize: '10px', color: 'var(--muted)', fontFamily: 'var(--font-mono)' }}>{inv.package_type.toUpperCase()}</div>
+                                </div>
                               </div>
-                            </div>
-                          </td>
-                          <td style={{ fontFamily: 'var(--font-mono)' }}>Active</td>
-                          <td style={{ fontFamily: 'var(--font-mono)' }}>${parseFloat(inv.amount).toLocaleString()}</td>
-                          <td style={{ color: inv.yield?.startsWith('-') ? 'var(--danger)' : 'var(--success)', fontFamily: 'var(--font-mono)' }}>
-                            {inv.yield}
-                          </td>
-                          <td style={{ textAlign: 'right' }}>
-                            <button className="vault-auth-link" style={{ fontSize: '11px' }} onClick={() => openChart(inv)}>Manage</button>
-                          </td>
-                        </tr>
-                      ))}
+                            </td>
+                            <td style={{ fontFamily: 'var(--font-mono)' }}>{inv.status}</td>
+                            <td style={{ fontFamily: 'var(--font-mono)' }}>
+                              ${(parseFloat(inv.current_value || inv.amount)).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 })}
+                              <div style={{ fontSize: '10px', color: 'var(--muted)' }}>from ${parseFloat(inv.amount).toLocaleString()}</div>
+                            </td>
+                            <td style={{ color: 'var(--success)', fontFamily: 'var(--font-mono)' }}>
+                              +{(inv.accrued_roi ?? 0).toFixed(2)}%
+                            </td>
+                            <td style={{ textAlign: 'right' }}>
+                              {isMatured ? (
+                                <button className="vault-auth-link" style={{ fontSize: '11px', color: 'var(--accent)' }} onClick={() => handleClaimInvestment(inv)}>Claim</button>
+                              ) : (
+                                <button className="vault-auth-link" style={{ fontSize: '11px' }} onClick={() => openChart(inv)}>Manage</button>
+                              )}
+                            </td>
+                          </tr>
+                        );
+                      })}
                       {investments.length === 0 && (
                         <tr><td colSpan={5} style={{ textAlign: 'center', color: 'var(--muted)', padding: '40px' }}>No active investments found.</td></tr>
                       )}
@@ -1114,7 +1138,7 @@ export default function Dashboard() {
                       />
                     </div>
                     <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '8px' }}>
-                      Minimum requirement: ${selectedPkg?.min_investment}
+                      Investment range: ${parseFloat(selectedPkg?.min_investment || 0).toLocaleString()} – ${parseFloat(selectedPkg?.max_investment || selectedPkg?.min_investment || 0).toLocaleString()}
                     </div>
                   </div>
 
@@ -1133,11 +1157,22 @@ export default function Dashboard() {
                     </select>
                   </div>
 
+                  {parseFloat(investAmount) >= parseFloat(selectedPkg?.min_investment || 0) && (
+                    <div className="vault-card" style={{ background: 'var(--surface)', padding: '20px', borderRadius: '4px', margin: '24px 0', border: '0.5px solid var(--border)' }}>
+                      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                        <span style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Guaranteed Return ({investDuration}-month lock-up)</span>
+                        <span style={{ fontSize: '18px', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
+                          +${(parseFloat(investAmount) * (parseFloat(selectedPkg?.yield?.replace(/[^0-9.-]/g, '') || 0) / 100)).toLocaleString('en-US', { maximumFractionDigits: 2 })}
+                        </span>
+                      </div>
+                    </div>
+                  )}
+
                   <div className="vault-card" style={{ background: 'var(--surface)', padding: '20px', borderRadius: '4px', margin: '24px 0', border: '0.5px solid var(--border)' }}>
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <AlertCircle size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
                       <div style={{ fontSize: '12px', color: 'var(--fg)', lineHeight: 1.5 }}>
-                        By proceeding, you acknowledge the risk of capital fluctuations and agree to the {investDuration}-month lock-up period for institutional yield optimization.
+                        This package offers a fixed total return of {selectedPkg?.yield} over the {investDuration}-month lock-up period. By proceeding, you agree to hold your capital for the full lock-up to realize the guaranteed return.
                       </div>
                     </div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '16px', cursor: 'pointer', userSelect: 'none' }}>
@@ -1154,7 +1189,7 @@ export default function Dashboard() {
                   <button 
                     className="vault-btn vault-btn-primary" 
                     style={{ width: '100%', marginTop: '8px' }}
-                    disabled={!riskAccepted || parseFloat(investAmount) < parseFloat(selectedPkg?.min_investment)}
+                    disabled={!riskAccepted || parseFloat(investAmount) < parseFloat(selectedPkg?.min_investment) || (parseFloat(selectedPkg?.max_investment) > 0 && parseFloat(investAmount) > parseFloat(selectedPkg?.max_investment))}
                     onClick={processInvest}
                   >
                     {selectedPkg?.type === 'crypto' ? 'Choose Payment Method' : 'Confirm & Execute'} <ArrowRight size={14} style={{ marginLeft: '8px' }} />

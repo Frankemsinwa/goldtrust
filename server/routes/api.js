@@ -4,7 +4,7 @@ const { register, login, verifyOTP, resendOTP, forgotPassword, resetPassword } =
 const { getProfile, updateKyc, getUserChat, sendChatMessage, sendSupportMessage } = require('../controllers/userController');
 const { getReferralStats } = require('../controllers/referralController');
 const { linkWallet, verifyTransaction } = require('../controllers/web3Controller');
-const { getPackages, getWallets, getInvestments, createInvestment, requestWithdrawal, getTransactions, createTransaction, getMarketData, getPortfolioPerformance } = require('../controllers/financeController');
+const { getPackages, getWallets, getInvestments, createInvestment, requestWithdrawal, getTransactions, createTransaction, getMarketData, getPortfolioPerformance, claimInvestment } = require('../controllers/financeController');
 const upload = require('../utils/upload');
 const { 
     getAdminStats, 
@@ -221,6 +221,7 @@ router.get('/wallets', authMiddleware, getWallets);
 router.get('/investments', authMiddleware, getInvestments);
 router.post('/investments', authMiddleware, createInvestment);
 router.get('/investments/:id/market-data/:timeframe', authMiddleware, getMarketData);
+router.post('/investments/:id/claim', authMiddleware, claimInvestment);
 router.get('/portfolio/performance', authMiddleware, getPortfolioPerformance);
 
 /**

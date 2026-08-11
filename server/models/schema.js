@@ -104,6 +104,18 @@ const initDb = async () => {
             ALTER TABLE investments ADD COLUMN IF NOT EXISTS lock_up_until TIMESTAMP;
         `);
 
+        // Migration: Add max_investment (price range upper bound) to investment packages
+        await query(`
+            ALTER TABLE investment_packages ADD COLUMN IF NOT EXISTS max_investment DECIMAL(20, 2);
+        `);
+
+        // Backfill max_investment for packages that predate the price-range system
+        await query(`
+            UPDATE investment_packages 
+            SET max_investment = min_investment * 10 
+            WHERE max_investment IS NULL;
+        `);
+
         // Seed/Backfill existing users who don't have a referral code
         const usersWithoutRef = await query('SELECT id FROM users WHERE referral_code IS NULL');
         for (const row of usersWithoutRef.rows) {
@@ -116,14 +128,14 @@ const initDb = async () => {
         if (parseInt(pkgs.rows[0].count) === 0) {
             console.log('[SCHEMA] Seeding default investment packages...');
             await query(`
-                INSERT INTO investment_packages (name, type, yield, min_investment, description) VALUES
-                ('Alpha Bitcoin Core', 'crypto', '+14.2%', 5000, 'Direct institutional exposure to BTC liquidity.'),
-                ('Ethereum Yield Plus', 'crypto', '+11.8%', 3000, 'Smart contract driven yield optimization.'),
-                ('Blue Chip Tech', 'stocks', '+8.4%', 2500, 'Imperial tech sector giants and AI growth.'),
-                ('Emerging Markets', 'stocks', '+15.6%', 1000, 'High-growth potential in developing economies.'),
-                ('West African Mining', 'gold', '+12.1%', 10000, 'Direct profit participation in physical gold extraction.'),
-                ('Physical Bullion', 'gold', '+4.2%', 50000, 'Allocated physical gold bars in Zurich vaults.'),
-                ('Micro Crypto Starter', 'crypto', '+9.5%', 50, 'Entry-level crypto asset diversification.');
+                INSERT INTO investment_packages (name, type, yield, min_investment, max_investment, description) VALUES
+                ('Alpha Bitcoin Core', 'crypto', '+14.2%', 5000, 25000, 'Direct institutional exposure to BTC liquidity.'),
+                ('Ethereum Yield Plus', 'crypto', '+11.8%', 3000, 15000, 'Smart contract driven yield optimization.'),
+                ('Blue Chip Tech', 'stocks', '+8.4%', 2500, 12500, 'Imperial tech sector giants and AI growth.'),
+                ('Emerging Markets', 'stocks', '+15.6%', 1000, 10000, 'High-growth potential in developing economies.'),
+                ('West African Mining', 'gold', '+12.1%', 10000, 50000, 'Direct profit participation in physical gold extraction.'),
+                ('Physical Bullion', 'gold', '+4.2%', 50000, 250000, 'Allocated physical gold bars in Zurich vaults.'),
+                ('Micro Crypto Starter', 'crypto', '+9.5%', 50, 500, 'Entry-level crypto asset diversification.');
             `);
         }
 

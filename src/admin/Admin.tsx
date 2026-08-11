@@ -21,6 +21,15 @@ const NAV_ITEMS = [
 
 import api from '../api';
 
+const minRoiSuggestion = (minInvestment: any) => {
+  const min = parseFloat(minInvestment) || 0;
+  if (min < 1000) return 3;
+  if (min < 5000) return 6;
+  if (min < 10000) return 9;
+  if (min < 50000) return 12;
+  return 14;
+};
+
 /* ───────── COMPONENT ───────── */
 
 export default function Admin() {
@@ -531,7 +540,7 @@ export default function Admin() {
                     <div key={p.id} style={{ padding: '12px 24px', borderBottom: '0.5px solid oklch(20% 0.01 250)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                       <div style={{ display: 'flex', flexDirection: 'column' }}>
                         <span style={{ fontSize: 13, fontWeight: 500 }}>{p.name}</span>
-                        <span style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>${parseFloat(p.min_investment).toLocaleString()} • {p.yield}% Yield</span>
+                        <span style={{ fontSize: 11, color: 'var(--accent)', fontFamily: 'var(--font-mono)' }}>${parseFloat(p.min_investment).toLocaleString()} – ${parseFloat(p.max_investment || p.min_investment).toLocaleString()} Range • {p.yield} Total ROI</span>
                       </div>
                       <button className="admin-action-btn" onClick={() => setEditingPackage(p)}>Edit</button>
                     </div>
@@ -579,13 +588,29 @@ export default function Admin() {
                 />
               </div>
               <div className="vault-input-group">
-                <label className="vault-label">Yield (%)</label>
+                <label className="vault-label">Max Investment ($)</label>
                 <input 
                   type="number" 
                   className="vault-input" 
-                  value={editingPackage.yield} 
-                  onChange={(e) => setEditingPackage({...editingPackage, yield: e.target.value})}
+                  value={editingPackage.max_investment || ''} 
+                  onChange={(e) => setEditingPackage({...editingPackage, max_investment: e.target.value})}
+                  placeholder="e.g. 1000"
                 />
+                <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: 8 }}>
+                  Must be greater than or equal to the minimum.
+                </div>
+              </div>
+              <div className="vault-input-group">
+                <label className="vault-label">Total ROI (%)</label>
+                <input 
+                  type="number" 
+                  className="vault-input" 
+                  value={editingPackage.yield?.replace(/[^0-9.\-]/g, '') || ''} 
+                  onChange={(e) => setEditingPackage({...editingPackage, yield: `${e.target.value}%`})}
+                />
+                <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: 8 }}>
+                  Fixed total return realized over the lock-up. Suggested for $min,{minRoiSuggestion(editingPackage.min_investment)}% — override anytime.
+                </div>
               </div>
             </div>
             <div className="vault-modal-footer">
