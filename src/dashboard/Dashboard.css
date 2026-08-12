@@ -460,6 +460,22 @@
     font-size: 32px;
   }
 
+  .vault-balance-stats {
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+
+  .vault-balance-stat {
+    flex: 1 1 40%;
+  }
+
+  .vault-btn-withdraw {
+    width: 100%;
+    justify-content: center;
+    padding: 12px;
+    margin-top: 8px;
+  }
+
   .vault-package-name {
     font-size: 16px;
   }
@@ -596,4 +612,49 @@
   0% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0.4); }
   70% { box-shadow: 0 0 0 15px rgba(212, 175, 55, 0); }
   100% { box-shadow: 0 0 0 0 rgba(212, 175, 55, 0); }
+}
+
+.vault-balance-stats {
+  display: flex;
+  align-items: flex-end;
+  gap: 32px;
+  margin-top: auto;
+}
+
+.vault-balance-stat {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+}
+
+.vault-balance-stat-value {
+  font-size: 18px;
+  font-family: var(--font-mono);
+}
+
+.vault-btn-withdraw {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 8px 18px;
+  font-family: var(--font-mono);
+  font-size: 10px;
+  letter-spacing: 0.2em;
+  background: linear-gradient(135deg, rgba(212, 175, 55, 0.15), rgba(212, 175, 55, 0.05));
+  border: 1.5px solid var(--accent);
+  color: var(--accent);
+  border-radius: 4px;
+  cursor: pointer;
+  transition: all 0.3s var(--ease);
+  white-space: nowrap;
+}
+
+.vault-btn-withdraw:hover {
+  background: var(--accent);
+  color: var(--bg);
+  box-shadow: 0 4px 20px rgba(212, 175, 55, 0.3);
+}
+
+.vault-btn-withdraw:active {
+  transform: scale(0.97);
 }

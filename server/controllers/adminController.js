@@ -206,15 +206,57 @@ const getAdminPackages = async (req, res) => {
     }
 };
 
+/**
+ * Suggest a default total ROI for a package based on its price range.
+ * Smaller packages carry smaller returns — admin can always override.
+ */
+const suggestRoi = (minInvestment) => {
+    const min = parseFloat(minInvestment) || 0;
+    if (min < 1000) return 3;
+    if (min < 5000) return 6;
+    if (min < 10000) return 9;
+    if (min < 50000) return 12;
+    return 14;
+};
+
+const ROI_MIN = 0.1;
+const ROI_MAX = 30;
+
 const updatePackage = async (req, res) => {
     const { id } = req.params;
-    const { name, min_investment, yield: yieldRate, description, type } = req.body;
+    const { name, min_investment, max_investment, yield: yieldRate, description, type } = req.body;
+
     try {
+        const currentResult = await query('SELECT * FROM investment_packages WHERE id = $1', [id]);
+        if (currentResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Package not found' });
+        }
+
+        const min = parseFloat(min_investment ?? currentResult.rows[0].min_investment);
+        const max = parseFloat(max_investment ?? currentResult.rows[0].max_investment);
+
+        if (!(min > 0)) {
+            return res.status(400).json({ error: 'Minimum investment must be greater than zero' });
+        }
+        if (!(max >= min)) {
+            return res.status(400).json({ error: 'Maximum investment must be greater than or equal to minimum' });
+        }
+
+        // Total ROI — auto-suggest from price when not provided, clamp to sane band
+        let roi = parseFloat(String(yieldRate ?? '').replace(/[^0-9.-]/g, ''));
+        if (isNaN(roi)) {
+            roi = suggestRoi(min);
+        }
+        roi = Math.min(ROI_MAX, Math.max(ROI_MIN, roi));
+        const roiStr = `${roi > 0 ? '+' : ''}${roi}%`;
+
         await query(
-            'UPDATE investment_packages SET name = $1, min_investment = $2, yield = $3, description = $4, type = $5 WHERE id = $6',
-            [name, min_investment, yieldRate, description, type, id]
+            `UPDATE investment_packages 
+             SET name = $1, min_investment = $2, max_investment = $3, yield = $4, description = $5, type = $6 
+             WHERE id = $7`,
+            [name, min, max, roiStr, description, type, id]
         );
-        res.json({ message: 'Package updated successfully' });
+        res.json({ message: 'Package updated successfully', roi: roiStr, min_investment: min, max_investment: max });
     } catch (err) {
         res.status(500).json({ error: 'Failed to update package', message: err.message });
     }

@@ -1,16 +1,17 @@
 const { query } = require('../config/db');
 const { sendInvestmentConfirmation } = require('../config/mailer');
-const { getDynamicYield, getMarketChart, getPortfolioProfit } = require('../utils/marketEngine');
+const { parseRoi, getAccruedValue, getAccruedRoi, getTotalRoi, getMarketChart, getPortfolioProfit } = require('../utils/marketEngine');
 const { handleReferralCommission } = require('../utils/referral');
 
 const getPackages = async (req, res) => {
     try {
         const result = await query('SELECT * FROM investment_packages ORDER BY min_investment ASC');
-        const dynamicPackages = result.rows.map(pkg => ({
+        // Yield is a fixed total ROI declared on the package — no simulated movement.
+        const packages = result.rows.map(pkg => ({
             ...pkg,
-            yield: getDynamicYield(pkg.yield, pkg.name)
+            roi: parseRoi(pkg.yield)
         }));
-        res.json(dynamicPackages);
+        res.json(packages);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch packages', message: err.message });
     }
@@ -21,16 +22,19 @@ const getPackages = async (req, res) => {
 const getWallets = async (req, res) => {
     try {
         // Ensure the user has a USD escrow wallet (auto-create for existing users)
-        const usdCheck = await query(
-            'SELECT id FROM wallets WHERE user_id = $1 AND type = $2',
-            [req.user.id, 'USD']
-        );
-        if (usdCheck.rows.length === 0) {
-            await query(
-                'INSERT INTO wallets (user_id, type, balance) VALUES ($1, $2, $3)',
-                [req.user.id, 'USD', 0]
+        const walletPromises = ['USD', 'REWARDS'].map(async (type) => {
+            const check = await query(
+                'SELECT id FROM wallets WHERE user_id = $1 AND type = $2',
+                [req.user.id, type]
             );
-        }
+            if (check.rows.length === 0) {
+                await query(
+                    'INSERT INTO wallets (user_id, type, balance) VALUES ($1, $2, $3)',
+                    [req.user.id, type, 0]
+                );
+            }
+        });
+        await Promise.all(walletPromises);
 
         const result = await query(
             'SELECT * FROM wallets WHERE user_id = $1 ORDER BY type ASC',
@@ -54,11 +58,18 @@ const getInvestments = async (req, res) => {
              ORDER BY i.created_at DESC`,
             [req.user.id]
         );
-        const dynamicInvestments = result.rows.map(inv => ({
-            ...inv,
-            yield: getDynamicYield(inv.yield, inv.package_name)
-        }));
-        res.json(dynamicInvestments);
+        const investments = result.rows.map(inv => {
+            const roi = parseRoi(inv.yield);
+            return {
+                ...inv,
+                roi,
+                total_roi: getTotalRoi(roi, inv.lock_up_until, inv.created_at),
+                current_value: getAccruedValue(inv.amount, roi, inv.created_at, inv.lock_up_until),
+                accrued_roi: getAccruedRoi(roi, inv.created_at, inv.lock_up_until),
+                is_matured: new Date(inv.lock_up_until || inv.created_at).getTime() <= Date.now()
+            };
+        });
+        res.json(investments);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch investments', message: err.message });
     }
@@ -75,25 +86,50 @@ const createInvestment = async (req, res) => {
         }
         const pkg = pkgResult.rows[0];
 
-        // 2. Check minimum investment
-        if (parseFloat(amount) < parseFloat(pkg.min_investment)) {
-            return res.status(400).json({ error: `Minimum investment for this package is $${pkg.min_investment}` });
+        // 2. Check investment range (min ≤ amount ≤ max)
+        const minInvestment = parseFloat(pkg.min_investment);
+        const maxInvestment = parseFloat(pkg.max_investment);
+        if (parseFloat(amount) < minInvestment || (maxInvestment > 0 && parseFloat(amount) > maxInvestment)) {
+            return res.status(400).json({
+                error: `Investment must be between $${minInvestment.toLocaleString()} and $${maxInvestment.toLocaleString()} for this package`
+            });
         }
 
         // 3. Check user balance (assuming we use internal wallets for some flows)
         // Note: For Web3 flows, verification happens in web3Controller. This is for balance-based investing.
-        const walletResult = await query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'USD']);
-        if (walletResult.rows.length === 0 || parseFloat(walletResult.rows[0].balance) < parseFloat(amount)) {
+        // Task rewards (REWARDS wallet) may only be used for investing and is consumed first.
+        const [rewardsResult, usdResult] = await Promise.all([
+            query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'REWARDS']),
+            query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'USD'])
+        ]);
+        const rewardsBalance = rewardsResult.rows.length ? parseFloat(rewardsResult.rows[0].balance) : 0;
+        const usdBalance = usdResult.rows.length ? parseFloat(usdResult.rows[0].balance) : 0;
+        const investAmt = parseFloat(amount);
+
+        // A portion (REWARDS-first, then USD) must cover the full amount
+        if (rewardsBalance + usdBalance < investAmt) {
             return res.status(400).json({ error: 'Insufficient balance in USD wallet' });
         }
 
         // 4. Deduct balance & Create records
         await query('BEGIN'); // Start transaction
-        
-        await query(
-            'UPDATE wallets SET balance = balance - $1 WHERE id = $2',
-            [amount, walletResult.rows[0].id]
-        );
+
+        // Consume reward balance first
+        const rewardsUsed = Math.min(rewardsBalance, investAmt);
+        if (rewardsUsed > 0) {
+            await query(
+                'UPDATE wallets SET balance = balance - $1 WHERE user_id = $2 AND type = $3',
+                [rewardsUsed, req.user.id, 'REWARDS']
+            );
+        }
+        // Then USD for the remainder
+        const usdUsed = investAmt - rewardsUsed;
+        if (usdUsed > 0) {
+            await query(
+                'UPDATE wallets SET balance = balance - $1 WHERE user_id = $2 AND type = $3',
+                [usdUsed, req.user.id, 'USD']
+            );
+        }
 
         const lockUpUntil = new Date();
         lockUpUntil.setMonth(lockUpUntil.getMonth() + parseInt(duration));
@@ -105,7 +141,7 @@ const createInvestment = async (req, res) => {
 
         await query(
             'INSERT INTO transactions (user_id, type, amount, status, metadata) VALUES ($1, $2, $3, $4, $5)',
-            [req.user.id, 'INVESTMENT', amount, 'completed', JSON.stringify({ packageId, packageName: pkg.name })]
+            [req.user.id, 'INVESTMENT', amount, 'completed', JSON.stringify({ packageId, packageName: pkg.name, rewardsUsed, usdUsed })]
         );
 
         await query('COMMIT');
@@ -220,7 +256,7 @@ const getMarketData = async (req, res) => {
     try {
         const { id, timeframe } = req.params;
         const invResult = await query(
-            `SELECT i.*, p.name as package_name 
+            `SELECT i.*, p.name as package_name, p.yield 
              FROM investments i 
              JOIN investment_packages p ON i.package_id = p.id 
              WHERE i.id = $1 AND i.user_id = $2`,
@@ -228,7 +264,11 @@ const getMarketData = async (req, res) => {
         );
         if (invResult.rows.length === 0) return res.status(404).json({ error: 'Investment not found' });
         const inv = invResult.rows[0];
-        const result = getMarketChart(inv.amount, timeframe, inv.package_name);
+        const result = getMarketChart(inv.amount, timeframe, inv.package_name, {
+            createdAt: inv.created_at,
+            lockUpUntil: inv.lock_up_until,
+            roi: inv.yield
+        });
         res.json(result);
     } catch (err) {
         res.status(500).json({ error: 'Failed to fetch market data' });
@@ -238,7 +278,10 @@ const getMarketData = async (req, res) => {
 const getPortfolioPerformance = async (req, res) => {
     try {
         const result = await query(
-            `SELECT i.* FROM investments i WHERE i.user_id = $1 AND i.status = 'active'`,
+            `SELECT i.*, p.yield as package_yield 
+             FROM investments i 
+             JOIN investment_packages p ON i.package_id = p.id 
+             WHERE i.user_id = $1 AND i.status = 'active'`,
             [req.user.id]
         );
         const profit = getPortfolioProfit(result.rows);
@@ -248,4 +291,69 @@ const getPortfolioPerformance = async (req, res) => {
     }
 };
 
-module.exports = { getPackages, getWallets, getInvestments, createInvestment, requestWithdrawal, getTransactions, createTransaction, getMarketData, getPortfolioPerformance };
+// --- MATURITY CLAIM ---
+
+const claimInvestment = async (req, res) => {
+    const { id } = req.params;
+
+    try {
+        const invResult = await query(
+            `SELECT i.*, p.yield 
+             FROM investments i 
+             JOIN investment_packages p ON i.package_id = p.id 
+             WHERE i.id = $1 AND i.user_id = $2`,
+            [id, req.user.id]
+        );
+        if (invResult.rows.length === 0) {
+            return res.status(404).json({ error: 'Investment not found' });
+        }
+        const inv = invResult.rows[0];
+
+        if (inv.status === 'completed') {
+            return res.status(400).json({ error: 'Investment already claimed' });
+        }
+
+        const matured = new Date(inv.lock_up_until || inv.created_at).getTime() <= Date.now();
+        if (!matured) {
+            return res.status(400).json({ error: 'Investment has not reached maturity yet' });
+        }
+
+        const currentValue = getAccruedValue(inv.amount, inv.yield, inv.created_at, inv.lock_up_until);
+        const profit = currentValue - parseFloat(inv.amount);
+
+        await query('BEGIN');
+
+        // Credit principal + accrued ROI to the USD wallet
+        await query(
+            'UPDATE wallets SET balance = balance + $1 WHERE user_id = $2 AND type = $3',
+            [currentValue, req.user.id, 'USD']
+        );
+
+        // Mark investment completed
+        await query(
+            'UPDATE investments SET status = $1 WHERE id = $2',
+            ['completed', id]
+        );
+
+        // Log transactions
+        await query(
+            'INSERT INTO transactions (user_id, type, amount, status, metadata) VALUES ($1, $2, $3, $4, $5)',
+            [req.user.id, 'INVESTMENT_RETURN', currentValue, 'completed', JSON.stringify({ investmentId: id, packageName: inv.package_name || 'Investment' })]
+        );
+        if (profit > 0) {
+            await query(
+                'INSERT INTO transactions (user_id, type, amount, status, metadata) VALUES ($1, $2, $3, $4, $5)',
+                [req.user.id, 'YIELD', profit, 'completed', JSON.stringify({ investmentId: id, source: 'Maturity ROI Accrual' })]
+            );
+        }
+
+        await query('COMMIT');
+
+        res.json({ message: 'Investment claimed successfully', amount: currentValue, profit });
+    } catch (err) {
+        await query('ROLLBACK');
+        res.status(500).json({ error: 'Failed to claim investment', message: err.message });
+    }
+};
+
+module.exports = { getPackages, getWallets, getInvestments, createInvestment, requestWithdrawal, getTransactions, createTransaction, getMarketData, getPortfolioPerformance, claimInvestment };

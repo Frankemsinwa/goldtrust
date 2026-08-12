@@ -57,14 +57,14 @@ const TOUR_STEPS: TourStep[] = [
   {
     target: '#tour-packages-grid',
     title: 'Strategic Yield Packages',
-    content: 'Review and invest in premium strategic packages. Each package specifies minimum capital, duration, and fixed annual percentage yields.',
+    content: 'Review and invest in premium strategic packages. Each package specifies an investment range, lock-up duration, and a fixed total return realized at maturity.',
     tab: 'invest',
     position: 'top'
   },
   {
     target: '#tour-portfolio-assets',
     title: 'Active Contracts Vault',
-    content: 'Review terms, maturities, and real-time yields accumulated on all active investment packages currently under custody.',
+    content: 'Review terms, maturities, and the accrued return accumulating on all active investment contracts currently under custody.',
     tab: 'portfolio',
     position: 'top'
   },
@@ -78,7 +78,7 @@ const TOUR_STEPS: TourStep[] = [
   {
     target: '#tour-history-table',
     title: 'Transaction Audit Trail',
-    content: 'Examine complete cryptographically verified receipts of all deposits, packages funded, yields credited, and withdrawals.',
+    content: 'Examine complete cryptographically verified receipts of all deposits, packages funded, returns credited, and withdrawals.',
     tab: 'history',
     position: 'top'
   },
