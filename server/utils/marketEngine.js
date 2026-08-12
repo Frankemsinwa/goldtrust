@@ -18,31 +18,53 @@ const parseRoi = (yieldStr) => {
  * Fraction of the lock-up period elapsed, clamped to [0, 1].
  * At maturity (or beyond) the full ROI has accrued.
  */
-const getElapsedFraction = (createdAt, lockUpUntil) => {
+const getElapsedFraction = (createdAt, lockUpUntil, now = Date.now()) => {
     const start = new Date(createdAt).getTime();
     const end = new Date(lockUpUntil || start).getTime();
-    const now = Date.now();
     if (end <= start) return 1;
     return Math.max(0, Math.min(1, (now - start) / (end - start)));
 };
 
 /**
+ * A package's yield is the TOTAL ROI over a 12-month lock-up.
+ * Shorter lock-ups earn proportionally less: totalRoi = yield * (months / 12).
+ */
+const DURATION_BASE_MONTHS = 12;
+
+const getLockUpMonths = (lockUpUntil, createdAt) => {
+    const start = new Date(createdAt).getTime();
+    const end = new Date(lockUpUntil || start).getTime();
+    if (end <= start) return DURATION_BASE_MONTHS;
+    return (end - start) / (1000 * 60 * 60 * 24 * DAYS_PER_MONTH);
+};
+
+/**
  * Deterministic projected value for an investment.
- * currentValue = amount * (1 + roiPct * elapsedFraction)
+ * currentValue = amount * (1 + durationScaledRoi * elapsedFraction)
  */
 const getAccruedValue = (amount, roiPctOrStr, createdAt, lockUpUntil) => {
-    const roi = parseRoi(roiPctOrStr) / 100;
+    const baseRoi = parseRoi(roiPctOrStr) / 100;
+    const scaledRoi = baseRoi * Math.max(0, Math.min(1, getLockUpMonths(lockUpUntil, createdAt) / DURATION_BASE_MONTHS));
     const frac = getElapsedFraction(createdAt, lockUpUntil);
-    return parseFloat(amount) * (1 + roi * frac);
+    return parseFloat(amount) * (1 + scaledRoi * frac);
 };
 
 /**
  * Deterministic accrued ROI percentage shown to the user.
  */
 const getAccruedRoi = (roiPctOrStr, createdAt, lockUpUntil) => {
-    const roi = parseRoi(roiPctOrStr);
+    const baseRoi = parseRoi(roiPctOrStr);
+    const scaledRoi = baseRoi * Math.max(0, Math.min(1, getLockUpMonths(lockUpUntil, createdAt) / DURATION_BASE_MONTHS));
     const frac = getElapsedFraction(createdAt, lockUpUntil);
-    return roi * frac;
+    return scaledRoi * frac;
+};
+
+/**
+ * The total ROI realized at maturity for this investment (duration-scaled).
+ */
+const getTotalRoi = (roiPctOrStr, lockUpUntil, createdAt) => {
+    const baseRoi = parseRoi(roiPctOrStr);
+    return baseRoi * Math.max(0, Math.min(1, getLockUpMonths(lockUpUntil, createdAt) / DURATION_BASE_MONTHS));
 };
 
 /**
@@ -67,7 +89,8 @@ const getMarketChart = (baseAmount, timeframe, seedStr, { createdAt, lockUpUntil
     const startTime = createdAt ? new Date(createdAt).getTime() : now;
     const endTime = lockUpUntil ? new Date(lockUpUntil).getTime() : startTime;
     const lockUpWindow = Math.max(1, endTime - startTime);
-    const roiPct = parseRoi(roi) / 100;
+    const baseRoi = parseRoi(roi) / 100;
+    const scaledRoi = baseRoi * Math.max(0, Math.min(1, (lockUpWindow / (1000 * 60 * 60 * 24 * DAYS_PER_MONTH)) / DURATION_BASE_MONTHS));
 
     const chartData = [];
 
@@ -76,7 +99,7 @@ const getMarketChart = (baseAmount, timeframe, seedStr, { createdAt, lockUpUntil
         const t = Math.max(startTime, Math.min(now, candleTime));
 
         const frac = Math.max(0, Math.min(1, (t - startTime) / lockUpWindow));
-        const close = amount * (1 + roiPct * frac);
+        const close = amount * (1 + scaledRoi * frac);
 
         // Deterministic micro-spread derived from the candle index (no RNG).
         const open = i === 0 ? amount : chartData[i - 1].close;
@@ -123,8 +146,10 @@ const getPortfolioProfit = (investments) => {
 module.exports = {
     parseRoi,
     getElapsedFraction,
+    getLockUpMonths,
     getAccruedValue,
     getAccruedRoi,
+    getTotalRoi,
     getMarketChart,
     getPortfolioProfit,
 };

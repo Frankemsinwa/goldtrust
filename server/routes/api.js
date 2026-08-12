@@ -5,6 +5,7 @@ const { getProfile, updateKyc, getUserChat, sendChatMessage, sendSupportMessage 
 const { getReferralStats } = require('../controllers/referralController');
 const { linkWallet, verifyTransaction } = require('../controllers/web3Controller');
 const { getPackages, getWallets, getInvestments, createInvestment, requestWithdrawal, getTransactions, createTransaction, getMarketData, getPortfolioPerformance, claimInvestment } = require('../controllers/financeController');
+const { getUserTasks, getRewardBalance, submitTask, getAdminTasks, createTask, setTaskStatus, getAdminSubmissions, reviewSubmission } = require('../controllers/taskController');
 const upload = require('../utils/upload');
 const { 
     getAdminStats, 
@@ -245,6 +246,11 @@ router.post('/withdrawals', authMiddleware, requestWithdrawal);
 router.get('/transactions', authMiddleware, getTransactions);
 router.post('/transactions', authMiddleware, upload.single('proofImage'), createTransaction);
 
+// Task earnings routes (Protected)
+router.get('/tasks', authMiddleware, getUserTasks);
+router.get('/tasks/rewards/balance', authMiddleware, getRewardBalance);
+router.post('/tasks/:taskId/submit', authMiddleware, upload.single('proof'), submitTask);
+
 // Admin routes (Protected + Admin Only)
 /**
  * @swagger
@@ -304,5 +310,12 @@ router.get('/admin/chats/:userId', authMiddleware, adminMiddleware, getAdminChat
 
 router.get('/admin/packages', authMiddleware, adminMiddleware, getAdminPackages);
 router.put('/admin/packages/:id', authMiddleware, adminMiddleware, updatePackage);
+
+// Admin task routes
+router.get('/admin/tasks', authMiddleware, adminMiddleware, getAdminTasks);
+router.post('/admin/tasks', authMiddleware, adminMiddleware, createTask);
+router.put('/admin/tasks/:id/status', authMiddleware, adminMiddleware, setTaskStatus);
+router.get('/admin/task-submissions', authMiddleware, adminMiddleware, getAdminSubmissions);
+router.put('/admin/task-submissions/:id', authMiddleware, adminMiddleware, reviewSubmission);
 
 module.exports = router;

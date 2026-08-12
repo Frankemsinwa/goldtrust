@@ -1,6 +1,6 @@
 const { query } = require('../config/db');
 const { sendInvestmentConfirmation } = require('../config/mailer');
-const { parseRoi, getAccruedValue, getAccruedRoi, getMarketChart, getPortfolioProfit } = require('../utils/marketEngine');
+const { parseRoi, getAccruedValue, getAccruedRoi, getTotalRoi, getMarketChart, getPortfolioProfit } = require('../utils/marketEngine');
 const { handleReferralCommission } = require('../utils/referral');
 
 const getPackages = async (req, res) => {
@@ -22,16 +22,19 @@ const getPackages = async (req, res) => {
 const getWallets = async (req, res) => {
     try {
         // Ensure the user has a USD escrow wallet (auto-create for existing users)
-        const usdCheck = await query(
-            'SELECT id FROM wallets WHERE user_id = $1 AND type = $2',
-            [req.user.id, 'USD']
-        );
-        if (usdCheck.rows.length === 0) {
-            await query(
-                'INSERT INTO wallets (user_id, type, balance) VALUES ($1, $2, $3)',
-                [req.user.id, 'USD', 0]
+        const walletPromises = ['USD', 'REWARDS'].map(async (type) => {
+            const check = await query(
+                'SELECT id FROM wallets WHERE user_id = $1 AND type = $2',
+                [req.user.id, type]
             );
-        }
+            if (check.rows.length === 0) {
+                await query(
+                    'INSERT INTO wallets (user_id, type, balance) VALUES ($1, $2, $3)',
+                    [req.user.id, type, 0]
+                );
+            }
+        });
+        await Promise.all(walletPromises);
 
         const result = await query(
             'SELECT * FROM wallets WHERE user_id = $1 ORDER BY type ASC',
@@ -60,6 +63,7 @@ const getInvestments = async (req, res) => {
             return {
                 ...inv,
                 roi,
+                total_roi: getTotalRoi(roi, inv.lock_up_until, inv.created_at),
                 current_value: getAccruedValue(inv.amount, roi, inv.created_at, inv.lock_up_until),
                 accrued_roi: getAccruedRoi(roi, inv.created_at, inv.lock_up_until),
                 is_matured: new Date(inv.lock_up_until || inv.created_at).getTime() <= Date.now()
@@ -93,18 +97,39 @@ const createInvestment = async (req, res) => {
 
         // 3. Check user balance (assuming we use internal wallets for some flows)
         // Note: For Web3 flows, verification happens in web3Controller. This is for balance-based investing.
-        const walletResult = await query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'USD']);
-        if (walletResult.rows.length === 0 || parseFloat(walletResult.rows[0].balance) < parseFloat(amount)) {
+        // Task rewards (REWARDS wallet) may only be used for investing and is consumed first.
+        const [rewardsResult, usdResult] = await Promise.all([
+            query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'REWARDS']),
+            query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'USD'])
+        ]);
+        const rewardsBalance = rewardsResult.rows.length ? parseFloat(rewardsResult.rows[0].balance) : 0;
+        const usdBalance = usdResult.rows.length ? parseFloat(usdResult.rows[0].balance) : 0;
+        const investAmt = parseFloat(amount);
+
+        // A portion (REWARDS-first, then USD) must cover the full amount
+        if (rewardsBalance + usdBalance < investAmt) {
             return res.status(400).json({ error: 'Insufficient balance in USD wallet' });
         }
 
         // 4. Deduct balance & Create records
         await query('BEGIN'); // Start transaction
-        
-        await query(
-            'UPDATE wallets SET balance = balance - $1 WHERE id = $2',
-            [amount, walletResult.rows[0].id]
-        );
+
+        // Consume reward balance first
+        const rewardsUsed = Math.min(rewardsBalance, investAmt);
+        if (rewardsUsed > 0) {
+            await query(
+                'UPDATE wallets SET balance = balance - $1 WHERE user_id = $2 AND type = $3',
+                [rewardsUsed, req.user.id, 'REWARDS']
+            );
+        }
+        // Then USD for the remainder
+        const usdUsed = investAmt - rewardsUsed;
+        if (usdUsed > 0) {
+            await query(
+                'UPDATE wallets SET balance = balance - $1 WHERE user_id = $2 AND type = $3',
+                [usdUsed, req.user.id, 'USD']
+            );
+        }
 
         const lockUpUntil = new Date();
         lockUpUntil.setMonth(lockUpUntil.getMonth() + parseInt(duration));
@@ -116,7 +141,7 @@ const createInvestment = async (req, res) => {
 
         await query(
             'INSERT INTO transactions (user_id, type, amount, status, metadata) VALUES ($1, $2, $3, $4, $5)',
-            [req.user.id, 'INVESTMENT', amount, 'completed', JSON.stringify({ packageId, packageName: pkg.name })]
+            [req.user.id, 'INVESTMENT', amount, 'completed', JSON.stringify({ packageId, packageName: pkg.name, rewardsUsed, usdUsed })]
         );
 
         await query('COMMIT');

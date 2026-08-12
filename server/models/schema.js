@@ -69,6 +69,31 @@ CREATE TABLE IF NOT EXISTS transactions (
     created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
 );
 
+CREATE TABLE IF NOT EXISTS tasks (
+    id SERIAL PRIMARY KEY,
+    title VARCHAR(255) NOT NULL,
+    description TEXT,
+    how_to TEXT,
+    link VARCHAR(500),
+    reward DECIMAL(20, 2) NOT NULL DEFAULT 0.50,
+    status VARCHAR(20) DEFAULT 'active',
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+);
+
+CREATE TABLE IF NOT EXISTS task_submissions (
+    id SERIAL PRIMARY KEY,
+    task_id INTEGER REFERENCES tasks(id) ON DELETE CASCADE,
+    user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+    proof_url VARCHAR(500),
+    status VARCHAR(20) DEFAULT 'pending',
+    reward DECIMAL(20, 2) DEFAULT 0,
+    reviewed_by INTEGER REFERENCES users(id),
+    rejected_reason TEXT,
+    created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    reviewed_at TIMESTAMP,
+    UNIQUE (task_id, user_id)
+);
+
 CREATE TABLE IF NOT EXISTS chat_messages (
     id SERIAL PRIMARY KEY,
     user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,

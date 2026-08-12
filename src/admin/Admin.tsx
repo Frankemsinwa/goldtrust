@@ -1,7 +1,7 @@
 import { useState, useRef, useEffect, useCallback } from 'react';
 import {
   LayoutDashboard, Users, TrendingUp, MessageSquare, Wallet,
-  Shield, Settings, LogOut, Menu, Send, Eye, Ban, CheckCircle2
+  Shield, Settings, LogOut, Menu, Send, Eye, Ban, CheckCircle2, Coins
 } from 'lucide-react';
 import './Admin.css';
 
@@ -14,6 +14,7 @@ const NAV_ITEMS = [
   { id: 'users', label: 'Users', icon: Users },
   { id: 'investments', label: 'Investments', icon: TrendingUp },
   { id: 'transactions', label: 'Transactions', icon: Wallet },
+  { id: 'tasks', label: 'Tasks', icon: Coins },
   { id: 'chat', label: 'Live Chat', icon: MessageSquare },
   { id: 'security', label: 'Security', icon: Shield },
   { id: 'settings', label: 'Settings', icon: Settings },
@@ -50,6 +51,14 @@ export default function Admin() {
   const [editingPackage, setEditingPackage] = useState<any>(null);
   const [viewingProof, setViewingProof] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
+
+  // Task management state
+  const [adminTasks, setAdminTasks] = useState<any[]>([]);
+  const [submissions, setSubmissions] = useState<any[]>([]);
+  const [taskForm, setTaskForm] = useState({ title: '', description: '', how_to: '', link: '', reward: '0.5' });
+  const [viewingSubmissionProof, setViewingSubmissionProof] = useState<string | null>(null);
+  const [rejectingSubmission, setRejectingSubmission] = useState<number | null>(null);
+  const [rejectReason, setRejectReason] = useState('');
 
   const activeChat = chats.find(c => c.user_id === selectedChat);
 
@@ -105,9 +114,72 @@ export default function Admin() {
     }
   }, []);
 
+  const fetchTaskData = useCallback(async () => {
+    try {
+      const [tasksRes, subsRes] = await Promise.all([
+        api.get('/admin/tasks'),
+        api.get('/admin/task-submissions')
+      ]);
+      setAdminTasks(tasksRes.data);
+      setSubmissions(subsRes.data);
+    } catch (err) {
+      console.error('Failed to fetch task data', err);
+    }
+  }, []);
+
+  const handleCreateTask = async () => {
+    try {
+      await api.post('/admin/tasks', taskForm);
+      setTaskForm({ title: '', description: '', how_to: '', link: '', reward: '0.5' });
+      fetchTaskData();
+      alert('Task created');
+    } catch (err) {
+      console.error('Failed to create task', err);
+      alert('Failed to create task');
+    }
+  };
+
+  const handleToggleTask = async (id: number, status: string) => {
+    try {
+      await api.put(`/admin/tasks/${id}/status`, { status });
+      fetchTaskData();
+    } catch (err) {
+      console.error('Failed to toggle task', err);
+    }
+  };
+
+  const handleReviewSubmission = async (id: number, action: string) => {
+    if (action === 'reject') {
+      setRejectingSubmission(id);
+      setRejectReason('');
+      return;
+    }
+    try {
+      await api.put(`/admin/task-submissions/${id}`, { action });
+      fetchTaskData();
+    } catch (err) {
+      console.error('Failed to review submission', err);
+      alert('Failed to review submission');
+    }
+  };
+
+  const handleConfirmReject = async () => {
+    if (!rejectingSubmission) return;
+    try {
+      await api.put(`/admin/task-submissions/${rejectingSubmission}`, { action: 'reject', reason: rejectReason });
+      fetchTaskData();
+      setRejectingSubmission(null);
+      setRejectReason('');
+    } catch (err) {
+      console.error('Failed to reject submission', err);
+      alert('Failed to reject submission');
+    }
+  };
+
   useEffect(() => {
     fetchAdminData();
-  }, [fetchAdminData]);
+    fetchTaskData();
+  }, [fetchAdminData, fetchTaskData]);
 
   const handleNav = (id: string) => { setTab(id); setSidebarOpen(false); };
 
@@ -165,7 +237,7 @@ export default function Admin() {
 
   const tabTitle: Record<string, string> = {
     overview: 'Command Center', users: 'Registered Users', investments: 'Investment Ledger',
-    transactions: 'Platform Transactions', chat: 'Live Support', security: 'Security & Compliance', settings: 'Platform Settings'
+    transactions: 'Platform Transactions', tasks: 'Earn Tasks', chat: 'Live Support', security: 'Security & Compliance', settings: 'Platform Settings'
   };
 
   return (
@@ -512,6 +584,123 @@ export default function Admin() {
             </div>
           )}
 
+          {/* ═══ TASKS ═══ */}
+          {tab === 'tasks' && (
+            <div className="admin-panels">
+              <div className="admin-panel">
+                <div className="admin-panel-header"><span className="admin-panel-title">Create Task</span></div>
+                <div className="admin-panel-body" style={{ padding: '24px', display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <div className="vault-input-group">
+                    <label className="vault-label">Task Title</label>
+                    <input
+                      type="text"
+                      className="vault-input"
+                      value={taskForm.title}
+                      onChange={(e) => setTaskForm({ ...taskForm, title: e.target.value })}
+                      placeholder="e.g. Follow us on X"
+                    />
+                  </div>
+                  <div className="vault-input-group">
+                    <label className="vault-label">How to Complete (instructions for investor)</label>
+                    <textarea
+                      className="vault-input"
+                      rows={3}
+                      value={taskForm.how_to}
+                      onChange={(e) => setTaskForm({ ...taskForm, how_to: e.target.value })}
+                      placeholder="Describe step-by-step how the investor completes this task and what proof is expected."
+                      style={{ resize: 'vertical', fontFamily: 'inherit' }}
+                    />
+                  </div>
+                  <div className="vault-input-group">
+                    <label className="vault-label">Task Link</label>
+                    <input
+                      type="text"
+                      className="vault-input"
+                      value={taskForm.link}
+                      onChange={(e) => setTaskForm({ ...taskForm, link: e.target.value })}
+                      placeholder="https://..."
+                    />
+                  </div>
+                  <div className="vault-input-group">
+                    <label className="vault-label">Reward per Completion ($)</label>
+                    <input
+                      type="number"
+                      step="0.1"
+                      className="vault-input"
+                      value={taskForm.reward}
+                      onChange={(e) => setTaskForm({ ...taskForm, reward: e.target.value })}
+                    />
+                  </div>
+                  <button className="vault-btn vault-btn-primary" onClick={handleCreateTask} disabled={!taskForm.title}>Create Task</button>
+                </div>
+              </div>
+
+              <div className="admin-panel">
+                <div className="admin-panel-header"><span className="admin-panel-title">Active Tasks</span></div>
+                <div className="admin-panel-body" style={{ padding: '8px 0' }}>
+                  {adminTasks.length === 0 && (
+                    <div style={{ padding: '24px', color: 'var(--muted)', fontSize: '12px', textAlign: 'center' }}>No tasks yet.</div>
+                  )}
+                  {adminTasks.map(t => (
+                    <div key={t.id} style={{ padding: '12px 24px', borderBottom: '0.5px solid oklch(20% 0.01 250)', display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
+                      <div>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{t.title}</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>${parseFloat(t.reward).toFixed(2)} reward • {t.status}</div>
+                      </div>
+                      <button
+                        className="admin-action-btn"
+                        onClick={() => handleToggleTask(t.id, t.status === 'active' ? 'inactive' : 'active')}
+                      >
+                        {t.status === 'active' ? 'Deactivate' : 'Activate'}
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+
+              <div className="admin-panel" style={{ gridColumn: '1 / -1' }}>
+                <div className="admin-panel-header"><span className="admin-panel-title">Task Submissions</span></div>
+                <div className="admin-panel-body" style={{ padding: '8px 0' }}>
+                  {submissions.length === 0 && (
+                    <div style={{ padding: '24px', color: 'var(--muted)', fontSize: '12px', textAlign: 'center' }}>No submissions yet.</div>
+                  )}
+                  {submissions.map(s => (
+                    <div key={s.id} style={{ padding: '16px 24px', borderBottom: '0.5px solid oklch(20% 0.01 250)', display: 'flex', flexWrap: 'wrap', gap: '12px', alignItems: 'center' }}>
+                      <div style={{ flex: 1, minWidth: 200 }}>
+                        <div style={{ fontSize: 13, fontWeight: 500 }}>{s.task_title}</div>
+                        <div style={{ fontSize: 11, color: 'var(--muted)' }}>{s.full_name} • {s.email}</div>
+                        <span style={{
+                          fontSize: '10px',
+                          background: s.status === 'pending' ? 'rgba(255,165,0,0.1)' : s.status === 'approved' ? 'rgba(0,255,0,0.1)' : 'rgba(255,0,0,0.1)',
+                          color: s.status === 'pending' ? 'orange' : s.status === 'approved' ? 'var(--success)' : 'var(--danger)',
+                          padding: '2px 8px', marginTop: '6px', display: 'inline-block', textTransform: 'uppercase'
+                        }}>
+                          {s.status}
+                        </span>
+                        {s.rejected_reason && (
+                          <div style={{ fontSize: 11, color: 'var(--danger)', marginTop: 4 }}>Reason: {s.rejected_reason}</div>
+                        )}
+                      </div>
+                      {s.proof_url && (
+                        <button className="admin-action-btn" onClick={() => setViewingSubmissionProof(s.proof_url)}>View Proof</button>
+                      )}
+                      {s.status === 'pending' && (
+                        <>
+                          <button className="admin-action-btn" style={{ background: 'var(--success)', color: '#000' }} onClick={() => handleReviewSubmission(s.id, 'approve')}>
+                            <CheckCircle2 size={14} style={{ marginRight: 6 }} /> Approve
+                          </button>
+                          <button className="admin-action-btn" style={{ background: 'var(--danger)', color: '#fff' }} onClick={() => handleReviewSubmission(s.id, 'reject')}>
+                            <Ban size={14} style={{ marginRight: 6 }} /> Reject
+                          </button>
+                        </>
+                      )}
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+          )}
+
           {/* ═══ SETTINGS ═══ */}
           {tab === 'settings' && (
             <div className="admin-panels">
@@ -609,7 +798,7 @@ export default function Admin() {
                   onChange={(e) => setEditingPackage({...editingPackage, yield: `${e.target.value}%`})}
                 />
                 <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: 8 }}>
-                  Fixed total return realized over the lock-up. Suggested for $min,{minRoiSuggestion(editingPackage.min_investment)}% — override anytime.
+                  Total ROI at the 12-month lock-up, prorated for shorter terms. Suggested for this price tier: {minRoiSuggestion(editingPackage.min_investment)}% — override anytime.
                 </div>
               </div>
             </div>
@@ -679,6 +868,80 @@ export default function Admin() {
               alt="Proof"
               style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
             />
+          </div>
+        </div>
+      )}
+
+      {viewingSubmissionProof && (
+        <div
+          className="admin-modal-overlay"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999, padding: '20px'
+          }}
+          onClick={() => setViewingSubmissionProof(null)}
+        >
+          <div
+            className="admin-modal"
+            style={{
+              maxWidth: '90%', maxHeight: '90%', position: 'relative', padding: '10px',
+              backgroundColor: 'var(--surface)', borderRadius: '8px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <button
+              style={{
+                position: 'absolute', right: -15, top: -15, background: 'var(--accent)', border: 'none', color: '#000',
+                width: 30, height: 30, borderRadius: '50%', fontSize: 20, cursor: 'pointer', fontWeight: 'bold'
+              }}
+              onClick={() => setViewingSubmissionProof(null)}
+            >
+              &times;
+            </button>
+            <img
+              src={viewingSubmissionProof}
+              alt="Task Proof"
+              style={{ maxWidth: '100%', maxHeight: '80vh', objectFit: 'contain', display: 'block' }}
+            />
+          </div>
+        </div>
+      )}
+
+      {rejectingSubmission && (
+        <div
+          className="admin-modal-overlay"
+          style={{
+            position: 'fixed', top: 0, left: 0, right: 0, bottom: 0,
+            backgroundColor: 'rgba(0,0,0,0.85)', display: 'flex', alignItems: 'center', justifyContent: 'center',
+            zIndex: 9999, padding: '20px'
+          }}
+          onClick={() => setRejectingSubmission(null)}
+        >
+          <div
+            className="admin-modal"
+            style={{
+              width: '100%', maxWidth: 420, position: 'relative', padding: '24px',
+              backgroundColor: 'var(--surface)', borderRadius: '8px', boxShadow: '0 20px 50px rgba(0,0,0,0.5)'
+            }}
+            onClick={e => e.stopPropagation()}
+          >
+            <h3 className="vault-modal-title" style={{ marginBottom: '16px' }}>Reject Submission</h3>
+            <div className="vault-input-group">
+              <label className="vault-label">Reason (shown to investor)</label>
+              <textarea
+                className="vault-input"
+                rows={3}
+                value={rejectReason}
+                onChange={(e) => setRejectReason(e.target.value)}
+                placeholder="e.g. Proof does not match the task requirements."
+                style={{ resize: 'vertical', fontFamily: 'inherit' }}
+              />
+            </div>
+            <div className="vault-modal-footer" style={{ marginTop: '16px', display: 'flex', gap: '12px', justifyContent: 'flex-end' }}>
+              <button className="vault-btn vault-btn-secondary" onClick={() => setRejectingSubmission(null)}>Cancel</button>
+              <button className="vault-btn vault-btn-primary" onClick={handleConfirmReject}>Confirm Reject</button>
+            </div>
           </div>
         </div>
       )}
