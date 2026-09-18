@@ -1474,17 +1474,30 @@ function AppContent() {
             }}
             onChange={(e) => {
               const lang = e.target.value;
-              const selectField = document.querySelector('.goog-te-combo') as HTMLSelectElement;
-              if (selectField) {
-                selectField.value = lang;
-                selectField.dispatchEvent(new Event('change'));
-              } else {
-                // Fallback: set cookie and reload
-                document.cookie = `googtrans=/en/${lang}; path=/`;
-                window.location.reload();
+              const domain = window.location.hostname;
+              
+              // Clear old cookies to prevent stuck language loops
+              document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/;`;
+              document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=${domain};`;
+              document.cookie = `googtrans=; expires=Thu, 01 Jan 1970 00:00:00 UTC; path=/; domain=.${domain};`;
+
+              if (lang !== 'en') {
+                // Set new language cookie
+                document.cookie = `googtrans=/en/${lang}; path=/;`;
+                document.cookie = `googtrans=/en/${lang}; path=/; domain=${domain};`;
+                document.cookie = `googtrans=/en/${lang}; path=/; domain=.${domain};`;
               }
+              
+              window.location.reload();
             }}
-            defaultValue="en"
+            defaultValue={(() => {
+              const match = document.cookie.match(/(?:^|;) ?googtrans=([^;]*)(?:;|$)/);
+              if (match) {
+                const parts = match[1].split('/');
+                return parts[parts.length - 1] || 'en';
+              }
+              return 'en';
+            })()}
           >
             <option value="en">EN</option>
             <option value="es">ES</option>
