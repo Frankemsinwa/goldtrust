@@ -434,6 +434,15 @@
     padding: 20px;
   }
 
+  .vault-task-row {
+    flex-direction: column !important;
+    gap: 12px !important;
+  }
+
+  .vault-task-action {
+    max-width: 100% !important;
+  }
+
   .vault-db-grid { grid-template-columns: 1fr; }
   .vault-packages-row { 
     grid-template-columns: 1fr !important; 

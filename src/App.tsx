@@ -1452,7 +1452,8 @@ function AppContent() {
           <a href="#security" className="vault-nav-link">Security</a>
         </div>
 
-        <div className="vault-nav-actions">
+        <div className="vault-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
+          <div id="google_translate_element" style={{ minWidth: '120px' }}></div>
           <a href="#" className="vault-btn vault-btn-primary vault-btn-nav" onClick={(e) => { e.preventDefault(); openAuth(); }}>Access Portal</a>
           <button
             className="vault-hamburger"

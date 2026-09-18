@@ -174,39 +174,73 @@ const createInvestment = async (req, res) => {
 // --- WITHDRAWALS ---
 
 const requestWithdrawal = async (req, res) => {
-    const { amount, blockchain, network, destinationAddress } = req.body;
+    const { amount, blockchain, network, destinationAddress, walletType = 'USD' } = req.body;
 
     try {
-        // 1. Validate minimum amount
-        if (parseFloat(amount) < 100) {
-            return res.status(400).json({ error: 'Minimum withdrawal amount is $100' });
+        if (walletType === 'REWARDS') {
+            if (parseFloat(amount) < 1 || parseFloat(amount) > 5) {
+                return res.status(400).json({ error: 'Task earnings withdrawal must be between $1 and $5' });
+            }
+            const walletResult = await query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'REWARDS']);
+            if (walletResult.rows.length === 0) {
+                return res.status(400).json({ error: 'Insufficient balance' });
+            }
+            const balance = parseFloat(walletResult.rows[0].balance);
+            if (balance < parseFloat(amount)) {
+                return res.status(400).json({ error: 'Insufficient balance' });
+            }
+            if (parseFloat(amount) > (balance * 0.1)) {
+                return res.status(400).json({ error: 'You can only withdraw up to 10% of your task earnings at a time' });
+            }
+            
+            await query('BEGIN');
+            
+            // Deduct balance immediately
+            await query(
+                'UPDATE wallets SET balance = balance - $1 WHERE id = $2',
+                [amount, walletResult.rows[0].id]
+            );
+
+            const metadata = { blockchain, network, destinationAddress, walletType: 'REWARDS' };
+            const result = await query(
+                'INSERT INTO transactions (user_id, type, amount, status, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [req.user.id, 'WITHDRAWAL', amount, 'pending', JSON.stringify(metadata)]
+            );
+            
+            await query('COMMIT');
+            return res.status(201).json({ message: 'Task earnings withdrawal request submitted', transaction: result.rows[0] });
+
+        } else {
+            // 1. Validate minimum amount
+            if (parseFloat(amount) < 100) {
+                return res.status(400).json({ error: 'Minimum withdrawal amount is $100' });
+            }
+
+            // 2. Check balance
+            const walletResult = await query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'USD']);
+            if (walletResult.rows.length === 0 || parseFloat(walletResult.rows[0].balance) < parseFloat(amount)) {
+                return res.status(400).json({ error: 'Insufficient balance' });
+            }
+
+            await query('BEGIN');
+
+            // 3. Deduct balance immediately (lock the funds)
+            await query(
+                'UPDATE wallets SET balance = balance - $1 WHERE id = $2',
+                [amount, walletResult.rows[0].id]
+            );
+
+            // 4. Create pending transaction with structured metadata
+            const metadata = { blockchain, network, destinationAddress, walletType: 'USD' };
+            const result = await query(
+                'INSERT INTO transactions (user_id, type, amount, status, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
+                [req.user.id, 'WITHDRAWAL', amount, 'pending', JSON.stringify(metadata)]
+            );
+
+            await query('COMMIT');
+
+            res.status(201).json({ message: 'Withdrawal request submitted', transaction: result.rows[0] });
         }
-
-        // 2. Check balance
-        const walletResult = await query('SELECT * FROM wallets WHERE user_id = $1 AND type = $2', [req.user.id, 'USD']);
-        if (walletResult.rows.length === 0 || parseFloat(walletResult.rows[0].balance) < parseFloat(amount)) {
-            return res.status(400).json({ error: 'Insufficient balance' });
-        }
-
-        await query('BEGIN');
-
-        // 3. Deduct balance immediately (lock the funds)
-        await query(
-            'UPDATE wallets SET balance = balance - $1 WHERE id = $2',
-            [amount, walletResult.rows[0].id]
-        );
-
-        // 4. Create pending transaction with structured metadata
-        const metadata = { blockchain, network, destinationAddress };
-        const result = await query(
-            'INSERT INTO transactions (user_id, type, amount, status, metadata) VALUES ($1, $2, $3, $4, $5) RETURNING *',
-            [req.user.id, 'WITHDRAWAL', amount, 'pending', JSON.stringify(metadata)]
-        );
-
-        await query('COMMIT');
-
-        res.status(201).json({ message: 'Withdrawal request submitted', transaction: result.rows[0] });
-
     } catch (err) {
         await query('ROLLBACK');
         res.status(500).json({ error: 'Withdrawal failed', message: err.message });

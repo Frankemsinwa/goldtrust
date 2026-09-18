@@ -27,7 +27,8 @@ import {
   Banknote,
   Send,
   Copy,
-  Users
+  Users,
+  Share2
 } from 'lucide-react';
 import './Dashboard.css';
 import TradingChart from './TradingChart';
@@ -67,7 +68,7 @@ export default function Dashboard() {
   const [investStep, setInvestStep] = useState<'idle' | 'input' | 'confirming' | 'processing' | 'success'>('idle');
   const [selectedPkg, setSelectedPkg] = useState<any>(null);
   const [investAmount, setInvestAmount] = useState('');
-  const [investDuration, setInvestDuration] = useState('12');
+  const [investDuration, setInvestDuration] = useState('30');
   const [riskAccepted, setRiskAccepted] = useState(false);
   const [investPaymentMethod, setInvestPaymentMethod] = useState<'web3' | 'internal' | null>(null);
   const [] = useState('');
@@ -85,7 +86,7 @@ export default function Dashboard() {
   // Withdrawal State
   const [withdrawModalOpen, setWithdrawModalOpen] = useState(false);
   const [withdrawStep, setWithdrawStep] = useState<'idle' | 'processing' | 'success'>('idle');
-  const [withdrawForm, setWithdrawForm] = useState({ amount: '', blockchain: 'Bitcoin', network: 'Bitcoin', destinationAddress: '' });
+  const [withdrawForm, setWithdrawForm] = useState({ amount: '', blockchain: 'Bitcoin', network: 'Bitcoin', destinationAddress: '', walletType: 'USD' });
 
   const CHAIN_CONFIG: Record<string, string[]> = {
     'Bitcoin': ['Bitcoin'],
@@ -381,7 +382,7 @@ export default function Dashboard() {
     setSelectedPkg(pkg);
     setInvestStep('input');
     setInvestAmount(pkg.min_investment.toString());
-    setInvestDuration('12');
+    setInvestDuration('30');
     setInvestError('');
     setInvestPaymentMethod(null);
   };
@@ -501,9 +502,16 @@ export default function Dashboard() {
   };
 
   const handleWithdraw = async () => {
-    if (parseFloat(withdrawForm.amount) < 100) {
-      alert('Minimum withdrawal amount is $100');
-      return;
+    if (withdrawForm.walletType === 'REWARDS') {
+      if (parseFloat(withdrawForm.amount) < 1 || parseFloat(withdrawForm.amount) > 5) {
+        alert('Task earnings withdrawal must be between $1 and $5');
+        return;
+      }
+    } else {
+      if (parseFloat(withdrawForm.amount) < 100) {
+        alert('Minimum withdrawal amount is $100');
+        return;
+      }
     }
     setWithdrawStep('processing');
     try {
@@ -513,6 +521,23 @@ export default function Dashboard() {
     } catch (err: any) {
       alert(err.response?.data?.error || 'Withdrawal failed');
       setWithdrawStep('idle');
+    }
+  };
+
+  const handleSharePackage = (pkg: any) => {
+    const link = referralStats?.referralCode ? `${window.location.origin}/register?ref=${referralStats.referralCode}` : window.location.origin;
+    const text = `Check out the ${pkg.name} package on GoldTrust! It offers ${pkg.yield} guaranteed return. Join here: ${link}`;
+    if (navigator.share) {
+      navigator.share({
+        title: `GoldTrust - ${pkg.name}`,
+        text: text,
+      }).catch(() => {
+        copyToClipboard(text);
+        alert('Package link copied to clipboard!');
+      });
+    } else {
+      copyToClipboard(text);
+      alert('Package link copied to clipboard!');
     }
   };
 
@@ -750,9 +775,12 @@ export default function Dashboard() {
                     <div key={pkg.id} className="vault-package-item">
                       <div className="vault-package-header-row">
                         <span className="vault-package-tag">{pkg.type}</span>
-                        {pkg.type === 'crypto' && <Coins size={12} color="var(--accent)" />}
-                        {pkg.type === 'gold' && <Gem size={12} color="#f3ba2f" />}
-                        {pkg.type === 'stocks' && <TrendingUp size={12} color="#ffffff" />}
+                        <div style={{ display: 'flex', gap: '10px', alignItems: 'center' }}>
+                          <Share2 size={14} color="var(--accent)" style={{ cursor: 'pointer' }} onClick={() => handleSharePackage(pkg)} />
+                          {pkg.type === 'crypto' && <Coins size={12} color="var(--accent)" />}
+                          {pkg.type === 'gold' && <Gem size={12} color="#f3ba2f" />}
+                          {pkg.type === 'stocks' && <TrendingUp size={12} color="#ffffff" />}
+                        </div>
                       </div>
                       <h4 className="vault-package-name">{pkg.name}</h4>
                       <div className="vault-package-yield" style={{ color: 'var(--success)' }}>{pkg.yield} <span style={{ fontSize: '10px', color: 'var(--muted)' }}>ROI (12-mo)</span></div>
@@ -974,7 +1002,7 @@ export default function Dashboard() {
                     const isRejected = task.submission_status === 'rejected';
                     return (
                       <div key={task.id} className="vault-card" style={{ padding: '20px', border: '0.5px solid var(--border)' }}>
-                        <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
+                        <div className="vault-task-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
                           <div style={{ flex: 1, minWidth: 200 }}>
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                               <span style={{ fontWeight: 500, fontSize: '14px' }}>{task.title}</span>
@@ -1013,7 +1041,7 @@ export default function Dashboard() {
                               Rejected{task.rejected_reason ? `: ${task.rejected_reason}` : ''}
                             </div>
                           ) : (
-                            <div style={{ width: '100%', maxWidth: 280 }}>
+                            <div className="vault-task-action" style={{ width: '100%', maxWidth: 280 }}>
                               <input
                                 type="file"
                                 accept="image/*"
@@ -1310,29 +1338,29 @@ export default function Dashboard() {
                       onChange={(e) => setInvestDuration(e.target.value)}
                       style={{ backgroundColor: 'var(--bg)', color: 'var(--fg)' }}
                     >
-                      <option value="1">1 Month</option>
-                      <option value="3">3 Months</option>
-                      <option value="6">6 Months</option>
-                      <option value="12">12 Months</option>
+                      <option value="3">3 Days</option>
+                      <option value="7">1 Week</option>
+                      <option value="14">2 Weeks</option>
+                      <option value="30">1 Month</option>
                     </select>
                   </div>
 
                   {parseFloat(investAmount) >= parseFloat(selectedPkg?.min_investment || 0) && (() => {
                     const baseRoi = parseFloat(selectedPkg?.yield?.replace(/[^0-9.-]/g, '') || 0);
-                    const scaledRoi = baseRoi * (parseInt(investDuration) / 12);
+                    const scaledRoi = baseRoi * (parseInt(investDuration) / 3);
                     const returnAmt = parseFloat(investAmount) * (scaledRoi / 100);
                     return (
                       <div className="vault-card" style={{ background: 'var(--surface)', padding: '20px', borderRadius: '4px', margin: '24px 0', border: '0.5px solid var(--border)' }}>
                         <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center' }}>
                           <span style={{ fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>
-                            Guaranteed Return ({investDuration}-month lock-up)
+                            Guaranteed Return ({investDuration}-day lock-up)
                           </span>
                           <span style={{ fontSize: '18px', fontFamily: 'var(--font-mono)', color: 'var(--success)' }}>
                             +${returnAmt.toLocaleString('en-US', { maximumFractionDigits: 2 })}
                           </span>
                         </div>
                         <div style={{ fontSize: '10px', color: 'var(--muted)', marginTop: '8px', fontFamily: 'var(--font-mono)' }}>
-                          {selectedPkg?.yield} at 12 months → +{scaledRoi.toFixed(2)}% over {investDuration} month{parseInt(investDuration) > 1 ? 's' : ''}
+                          {selectedPkg?.yield} base → +{scaledRoi.toFixed(2)}% over {investDuration} day{parseInt(investDuration) > 1 ? 's' : ''}
                         </div>
                         {rewardBalance > 0 && (
                           <div style={{ fontSize: '10px', color: 'var(--accent)', marginTop: '8px' }}>
@@ -1347,7 +1375,7 @@ export default function Dashboard() {
                     <div style={{ display: 'flex', gap: '12px' }}>
                       <AlertCircle size={18} color="var(--accent)" style={{ flexShrink: 0 }} />
                       <div style={{ fontSize: '12px', color: 'var(--fg)', lineHeight: 1.5 }}>
-                                                This package offers a fixed total return of {selectedPkg?.yield} at a 12-month lock-up, prorated for your chosen {investDuration}-month term. By proceeding, you agree to hold your capital for the full lock-up to realize the guaranteed return.
+                                                This package offers a fixed total return based on a minimum {selectedPkg?.yield} threshold, calculated for your chosen {investDuration}-day term. By proceeding, you agree to hold your capital for the full lock-up to realize the guaranteed return.
                       </div>
                     </div>
                     <label style={{ display: 'flex', alignItems: 'center', gap: '10px', marginTop: '16px', cursor: 'pointer', userSelect: 'none' }}>
@@ -1902,16 +1930,30 @@ export default function Dashboard() {
               <div className="reveal revealed">
                 <h3 className="vault-db-title" style={{ marginBottom: '8px' }}>Withdraw Funds</h3>
                 <div style={{ fontSize: '14px', color: 'var(--muted)', marginBottom: '24px' }}>
-                  Enter withdrawal details. Minimum amount is <strong>$100</strong>.
+                  {withdrawForm.walletType === 'USD' ? (
+                    <>Enter withdrawal details. Minimum amount is <strong>$100</strong>.</>
+                  ) : (
+                    <>Task Earnings withdrawal: Min <strong>$1</strong>, Max <strong>$5</strong> (up to 10% of total balance).</>
+                  )}
                 </div>
                 <div style={{ display: 'flex', flexDirection: 'column', gap: '16px' }}>
+                  <select 
+                    className="vault-input" 
+                    style={{ backgroundColor: 'var(--bg)', color: 'var(--fg)' }}
+                    value={withdrawForm.walletType} 
+                    onChange={(e) => setWithdrawForm({...withdrawForm, walletType: e.target.value as any})}
+                  >
+                    <option value="USD">Imperial Balance (USD)</option>
+                    <option value="REWARDS">Task Earnings (REWARDS)</option>
+                  </select>
+
                   <input className="vault-input" type="number" placeholder="Amount ($)" value={withdrawForm.amount} onChange={(e) => setWithdrawForm({...withdrawForm, amount: e.target.value})} />
 
                   <select 
                     className="vault-input" 
                     style={{ backgroundColor: 'var(--bg)', color: 'var(--fg)' }}
                     value={withdrawForm.blockchain} 
-                    onChange={(e) => setWithdrawForm({ amount: withdrawForm.amount, blockchain: e.target.value, network: CHAIN_CONFIG[e.target.value][0], destinationAddress: withdrawForm.destinationAddress })}
+                    onChange={(e) => setWithdrawForm({...withdrawForm, blockchain: e.target.value, network: CHAIN_CONFIG[e.target.value][0]})}
                   >
                     {Object.keys(CHAIN_CONFIG).map(chain => <option key={chain}>{chain}</option>)}
                   </select>
