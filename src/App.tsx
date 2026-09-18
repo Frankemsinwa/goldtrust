@@ -1453,7 +1453,45 @@ function AppContent() {
         </div>
 
         <div className="vault-nav-actions" style={{ display: 'flex', alignItems: 'center', gap: '16px' }}>
-          <div id="google_translate_element" style={{ minWidth: '120px' }}></div>
+          {/* Hidden Google Translate Element */}
+          <div id="google_translate_element" style={{ display: 'none' }}></div>
+          
+          {/* Custom Sleek Dropdown */}
+          <select 
+            className="vault-input"
+            style={{ 
+              width: 'auto', 
+              backgroundColor: 'var(--bg)', 
+              color: 'var(--fg)', 
+              border: '1px solid var(--border)', 
+              borderRadius: '4px',
+              padding: '6px 8px', 
+              outline: 'none', 
+              cursor: 'pointer', 
+              fontFamily: 'var(--font-mono)', 
+              fontSize: '12px',
+              textTransform: 'uppercase'
+            }}
+            onChange={(e) => {
+              const lang = e.target.value;
+              const selectField = document.querySelector('.goog-te-combo') as HTMLSelectElement;
+              if (selectField) {
+                selectField.value = lang;
+                selectField.dispatchEvent(new Event('change'));
+              } else {
+                // Fallback: set cookie and reload
+                document.cookie = `googtrans=/en/${lang}; path=/`;
+                window.location.reload();
+              }
+            }}
+            defaultValue="en"
+          >
+            <option value="en">EN</option>
+            <option value="es">ES</option>
+            <option value="fr">FR</option>
+            <option value="de">DE</option>
+            <option value="zh-CN">ZH</option>
+          </select>
           <a href="#" className="vault-btn vault-btn-primary vault-btn-nav" onClick={(e) => { e.preventDefault(); openAuth(); }}>Access Portal</a>
           <button
             className="vault-hamburger"
