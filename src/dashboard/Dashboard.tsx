@@ -167,7 +167,7 @@ export default function Dashboard() {
     try {
       const formData = new FormData();
       formData.append('proof', taskProofFile.file);
-      await api.post(`/tasks/${taskId}/submit`, formData, { headers: { 'Content-Type': 'multipart/form-data' } });
+      await api.post(`/tasks/${taskId}/submit`, formData);
       setTaskProofFile({ file: null, taskId: null });
       fetchTasks();
       alert('Task submitted for review. Earnings are credited once an admin approves.');
@@ -502,11 +502,7 @@ export default function Dashboard() {
         formData.append('proofImage', depositProofFile);
       }
 
-      await api.post('/transactions', formData, {
-        headers: {
-          'Content-Type': 'multipart/form-data'
-        }
-      });
+      await api.post('/transactions', formData);
       setDepositStep('success');
       fetchData();
     } catch (err) {
