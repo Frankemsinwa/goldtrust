@@ -1,0 +1,27 @@
+﻿
+.vault-card-tasks {
+  grid-column: span 8;
+}
+.vault-task-content {
+  flex: 1;
+  min-width: 200px;
+}
+@media (max-width: 992px) {
+  .vault-card-tasks {
+    grid-column: span 12;
+  }
+}
+@media (max-width: 576px) {
+  .vault-task-row {
+    flex-direction: column !important;
+    gap: 16px !important;
+  }
+  .vault-task-content {
+    min-width: 100% !important;
+  }
+  .vault-task-action {
+    max-width: 100% !important;
+    width: 100% !important;
+  }
+}
+

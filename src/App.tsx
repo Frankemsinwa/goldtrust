@@ -1,5 +1,5 @@
 import { useEffect, useState, useRef, useCallback } from 'react'
-import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation } from 'react-router-dom'
+import { BrowserRouter as Router, Routes, Route, useNavigate, useLocation, useParams } from 'react-router-dom'
 import api from './api'
 import Dashboard from './dashboard/Dashboard'
 import Admin from './admin/Admin'
@@ -2053,6 +2053,88 @@ function RegisterRedirect() {
   return null
 }
 
+function PublicPackageRedirect() {
+  const { id } = useParams();
+  const [pkg, setPkg] = useState<any>(null);
+  const [loading, setLoading] = useState(true);
+  const navigate = useNavigate();
+  const [searchParams] = useState(new URLSearchParams(window.location.search));
+  
+  useEffect(() => {
+    const fetchPackage = async () => {
+      try {
+        const url = import.meta.env.VITE_API_URL || 'http://localhost:5000/api';
+        const res = await fetch(`${url}/packages`);
+        const data = await res.json();
+        const found = data.find((p: any) => String(p.id) === String(id));
+        setPkg(found);
+      } catch (err) {
+        console.error(err);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchPackage();
+  }, [id]);
+
+  const handleInvest = () => {
+    localStorage.setItem('pending_investment', String(id));
+    const ref = searchParams.get('ref');
+    if (ref) localStorage.setItem('referralCode', ref);
+    navigate('/', { replace: true, state: { openRegister: true } });
+  };
+
+  if (loading) return (
+    <div style={{ backgroundColor: 'var(--bg)', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center' }}>
+      <div className="vault-institutional-loader" />
+    </div>
+  );
+
+  if (!pkg) return (
+    <div style={{ backgroundColor: 'var(--bg)', color: 'var(--fg)', minHeight: '100vh', display: 'flex', justifyContent: 'center', alignItems: 'center', flexDirection: 'column' }}>
+      <h2 style={{ fontFamily: 'var(--font-display)', marginBottom: '20px' }}>Package not found</h2>
+      <button className="vault-btn vault-btn-primary" onClick={() => navigate('/')}>Return to Homepage</button>
+    </div>
+  );
+
+  return (
+    <div style={{ backgroundColor: 'var(--bg)', color: 'var(--fg)', minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+      <header className="vault-header">
+        <div className="vault-logo" onClick={() => navigate('/')} style={{ cursor: 'pointer' }}>GOLDTRUST</div>
+      </header>
+      <div style={{ flex: 1, display: 'flex', justifyContent: 'center', alignItems: 'center', padding: '20px' }}>
+        <div className="vault-card" style={{ maxWidth: '500px', width: '100%', padding: '40px', background: 'oklch(15% 0.012 250)', border: '1px solid var(--accent)' }}>
+          <div style={{ textAlign: 'center', marginBottom: '30px' }}>
+            <div className="vault-package-tag" style={{ marginBottom: '16px', display: 'inline-block', fontSize: '12px' }}>Premium Allocation</div>
+            <h1 style={{ fontSize: '32px', marginBottom: '16px', fontFamily: 'var(--font-display)' }}>{pkg.name}</h1>
+            <p style={{ color: 'var(--muted)', fontSize: '14px', lineHeight: 1.6 }}>You have been invited to review this premium institutional package.</p>
+          </div>
+          
+          <div style={{ background: 'var(--bg)', border: '1px solid var(--border)', padding: '24px', borderRadius: '4px', marginBottom: '32px' }}>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+              <span style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase' }}>Asset Class</span>
+              <span style={{ textTransform: 'uppercase', fontSize: '12px', color: 'var(--fg)' }}>{pkg.type}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between', marginBottom: '16px', borderBottom: '1px solid var(--border)', paddingBottom: '16px' }}>
+              <span style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase' }}>Guaranteed Return</span>
+              <span style={{ color: 'var(--success)', fontWeight: 600, fontSize: '16px' }}>{pkg.yield}</span>
+            </div>
+            <div style={{ display: 'flex', justifyContent: 'space-between' }}>
+              <span style={{ color: 'var(--muted)', fontSize: '12px', textTransform: 'uppercase' }}>Investment Range</span>
+              <span style={{ fontSize: '14px', fontFamily: 'var(--font-mono)', color: 'var(--fg)' }}>${parseFloat(pkg.min_investment).toLocaleString()} – ${parseFloat(pkg.max_investment || pkg.min_investment).toLocaleString()}</span>
+            </div>
+          </div>
+          
+          <button className="vault-btn vault-btn-primary" style={{ width: '100%', padding: '16px', fontSize: '14px', letterSpacing: '0.1em' }} onClick={handleInvest}>
+            INVEST NOW
+          </button>
+          <p style={{ textAlign: 'center', marginTop: '16px', fontSize: '11px', color: 'var(--muted)', textTransform: 'uppercase', letterSpacing: '0.05em' }}>Requires a registered GoldTrust account</p>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function App() {
   return (
     <Router>
@@ -2062,6 +2144,7 @@ function App() {
         <Route path="/admin" element={<Admin />} />
         <Route path="/login" element={<LoginRedirect />} />
         <Route path="/register" element={<RegisterRedirect />} />
+        <Route path="/package/:id" element={<PublicPackageRedirect />} />
       </Routes>
     </Router>
   )

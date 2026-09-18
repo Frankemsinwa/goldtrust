@@ -237,6 +237,19 @@ export default function Dashboard() {
   };
 
   useEffect(() => {
+    const pendingPkgId = localStorage.getItem('pending_investment');
+    if (pendingPkgId && packages.length > 0) {
+      const pkg = packages.find(p => String(p.id) === pendingPkgId);
+      if (pkg) {
+        setActiveTab('invest');
+        setSelectedPackage(pkg);
+        setInvestModalOpen(true);
+        localStorage.removeItem('pending_investment');
+      }
+    }
+  }, [packages]);
+
+  useEffect(() => {
     fetchData();
     fetchTasks();
     
@@ -525,7 +538,7 @@ export default function Dashboard() {
   };
 
   const handleSharePackage = (pkg: any) => {
-    const link = referralStats?.referralCode ? `${window.location.origin}/register?ref=${referralStats.referralCode}` : window.location.origin;
+    const link = referralStats?.referralCode ? `${window.location.origin}/package/${pkg.id}?ref=${referralStats.referralCode}` : `${window.location.origin}/package/${pkg.id}`;
     const text = `Check out the ${pkg.name} package on GoldTrust! It offers ${pkg.yield} guaranteed return. Join here: ${link}`;
     if (navigator.share) {
       navigator.share({
@@ -988,7 +1001,7 @@ export default function Dashboard() {
                 </button>
               </div>
 
-              <div className="vault-card" style={{ gridColumn: 'span 8' }}>
+              <div className="vault-card vault-card-tasks">
                 <div className="vault-balance-header" style={{ marginBottom: '16px' }}>
                   <span className="vault-balance-label">Available Tasks</span>
                 </div>
@@ -1003,7 +1016,7 @@ export default function Dashboard() {
                     return (
                       <div key={task.id} className="vault-card" style={{ padding: '20px', border: '0.5px solid var(--border)' }}>
                         <div className="vault-task-row" style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'flex-start', gap: '16px', flexWrap: 'wrap' }}>
-                          <div style={{ flex: 1, minWidth: 200 }}>
+                          <div className="vault-task-content">
                             <div style={{ display: 'flex', alignItems: 'center', gap: '8px', flexWrap: 'wrap' }}>
                               <span style={{ fontWeight: 500, fontSize: '14px' }}>{task.title}</span>
                               <span style={{ fontSize: '10px', background: 'rgba(212,175,55,0.12)', color: 'var(--accent)', padding: '2px 8px', borderRadius: '2px', fontFamily: 'var(--font-mono)' }}>
