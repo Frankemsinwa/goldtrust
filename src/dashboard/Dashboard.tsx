@@ -236,18 +236,7 @@ export default function Dashboard() {
     }
   };
 
-  useEffect(() => {
-    const pendingPkgId = localStorage.getItem('pending_investment');
-    if (pendingPkgId && packages.length > 0) {
-      const pkg = packages.find(p => String(p.id) === pendingPkgId);
-      if (pkg) {
-        setActiveTab('invest');
-        setSelectedPackage(pkg);
-        setInvestModalOpen(true);
-        localStorage.removeItem('pending_investment');
-      }
-    }
-  }, [packages]);
+
 
   useEffect(() => {
     fetchData();
@@ -399,6 +388,18 @@ export default function Dashboard() {
     setInvestError('');
     setInvestPaymentMethod(null);
   };
+
+  useEffect(() => {
+    const pendingPkgId = localStorage.getItem('pending_investment');
+    if (pendingPkgId && packages.length > 0) {
+      const pkg = packages.find(p => String(p.id) === pendingPkgId);
+      if (pkg) {
+        setActiveTab('invest');
+        startInvest(pkg);
+        localStorage.removeItem('pending_investment');
+      }
+    }
+  }, [packages]);
 
   const processInvest = async () => {
     if (!investAmount || !riskAccepted) return;
