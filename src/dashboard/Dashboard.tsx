@@ -165,15 +165,23 @@ export default function Dashboard() {
     if (!taskProofFile.file) return;
     setTaskSubmitting(taskId);
     try {
-      const formData = new FormData();
-      formData.append('proof', taskProofFile.file);
-      await api.post(`/tasks/${taskId}/submit`, formData);
-      setTaskProofFile({ file: null, taskId: null });
-      fetchTasks();
-      alert('Task submitted for review. Earnings are credited once an admin approves.');
+      const reader = new FileReader();
+      reader.onloadend = async () => {
+        try {
+          const base64String = reader.result as string;
+          await api.post(`/tasks/${taskId}/submit`, { proof: base64String });
+          setTaskProofFile({ file: null, taskId: null });
+          fetchTasks();
+          alert('Task submitted for review. Earnings are credited once an admin approves.');
+        } catch (err: any) {
+          alert(err.response?.data?.error || 'Failed to submit task');
+        } finally {
+          setTaskSubmitting(null);
+        }
+      };
+      reader.readAsDataURL(taskProofFile.file);
     } catch (err: any) {
-      alert(err.response?.data?.error || 'Failed to submit task');
-    } finally {
+      alert('Failed to process file');
       setTaskSubmitting(null);
     }
   };
@@ -489,22 +497,42 @@ export default function Dashboard() {
   const handleDepositSubmit = async () => {
     setDepositStep('processing');
     try {
-      const formData = new FormData();
-      formData.append('type', 'DEPOSIT');
-      formData.append('amount', depositAmount);
-      formData.append('status', 'pending');
-      formData.append('metadata', JSON.stringify({
-        method: depositMethod,
-        proof: depositProof,
-        cryptoCurrency: selectedCrypto
-      }));
-      if (depositProofFile) {
-        formData.append('proofImage', depositProofFile);
-      }
+      const payload: any = {
+        type: 'DEPOSIT',
+        amount: depositAmount,
+        status: 'pending',
+        metadata: JSON.stringify({
+          method: depositMethod,
+          proof: depositProof,
+          cryptoCurrency: selectedCrypto
+        })
+      };
 
-      await api.post('/transactions', formData);
-      setDepositStep('success');
-      fetchData();
+      const sendRequest = async () => {
+        await api.post('/transactions', payload);
+        setDepositStep('success');
+        fetchData();
+      };
+
+      if (depositProofFile) {
+        const reader = new FileReader();
+        reader.onloadend = async () => {
+          payload.proofImage = reader.result as string;
+          try {
+            await sendRequest();
+          } catch (err) {
+            console.error('Deposit request failed', err);
+            setDepositStep('amount');
+          }
+        };
+        reader.onerror = () => {
+          console.error('Failed to read file');
+          setDepositStep('amount');
+        };
+        reader.readAsDataURL(depositProofFile);
+      } else {
+        await sendRequest();
+      }
     } catch (err) {
       console.error('Deposit request failed', err);
       setDepositStep('amount');

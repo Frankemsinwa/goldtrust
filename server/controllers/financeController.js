@@ -260,7 +260,7 @@ const getTransactions = async (req, res) => {
 };
 
 const createTransaction = async (req, res) => {
-    let { type, amount, status, metadata } = req.body;
+    let { type, amount, status, metadata, proofImage } = req.body;
 
     // Handle multipart form data if metadata is sent as a string
     if (typeof metadata === 'string') {
@@ -273,6 +273,16 @@ const createTransaction = async (req, res) => {
 
     if (req.file) {
         metadata = { ...metadata, proofImageUrl: req.file.path || req.file.secure_url };
+    }
+
+    if (proofImage && typeof proofImage === 'string' && proofImage.startsWith('data:image')) {
+        try {
+            const cloudinary = require('cloudinary').v2;
+            const uploadRes = await cloudinary.uploader.upload(proofImage, { folder: 'goldtrust_proofs' });
+            metadata = { ...metadata, proofImageUrl: uploadRes.secure_url };
+        } catch (e) {
+            console.error('Cloudinary upload error:', e);
+        }
     }
 
     try {

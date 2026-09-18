@@ -48,6 +48,12 @@ const submitTask = async (req, res) => {
     }
 
     try {
+        if (proof.startsWith('data:image')) {
+            const cloudinary = require('cloudinary').v2;
+            const uploadRes = await cloudinary.uploader.upload(proof, { folder: 'goldtrust_proofs' });
+            proof = uploadRes.secure_url;
+        }
+
         const taskResult = await query('SELECT * FROM tasks WHERE id = $1 AND status = $2', [taskId, 'active']);
         if (taskResult.rows.length === 0) {
             return res.status(400).json({ error: 'Task not found or no longer active' });
