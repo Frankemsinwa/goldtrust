@@ -1504,6 +1504,16 @@ function AppContent() {
             <option value="fr">FR</option>
             <option value="de">DE</option>
             <option value="zh-CN">ZH</option>
+            <option value="it">IT</option>
+            <option value="pt">PT</option>
+            <option value="ru">RU</option>
+            <option value="ja">JA</option>
+            <option value="ko">KO</option>
+            <option value="ar">AR</option>
+            <option value="hi">HI</option>
+            <option value="tr">TR</option>
+            <option value="nl">NL</option>
+            <option value="vi">VI</option>
           </select>
           <a href="#" className="vault-btn vault-btn-primary vault-btn-nav" onClick={(e) => { e.preventDefault(); openAuth(); }}>Access Portal</a>
           <button
