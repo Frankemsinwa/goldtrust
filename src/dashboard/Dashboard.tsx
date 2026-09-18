@@ -36,6 +36,22 @@ import DashboardTour from './DashboardTour';
 
 // Mock data kept as fallback for structural safety, but replaced by API data in useEffect
 
+const getInterleavedPackages = (pkgs: any[]) => {
+  const gold = pkgs.filter(p => p.type === 'gold').sort((a, b) => parseFloat(a.min_investment) - parseFloat(b.min_investment));
+  const crypto = pkgs.filter(p => p.type === 'crypto').sort((a, b) => parseFloat(a.min_investment) - parseFloat(b.min_investment));
+  const stock = pkgs.filter(p => p.type === 'stocks').sort((a, b) => parseFloat(a.min_investment) - parseFloat(b.min_investment));
+  
+  const maxLength = Math.max(gold.length, crypto.length, stock.length);
+  const result = [];
+  for (let i = 0; i < maxLength; i++) {
+    if (gold[i]) result.push(gold[i]);
+    if (crypto[i]) result.push(crypto[i]);
+    if (stock[i]) result.push(stock[i]);
+  }
+  
+  const others = pkgs.filter(p => p.type !== 'gold' && p.type !== 'crypto' && p.type !== 'stocks').sort((a, b) => parseFloat(a.min_investment) - parseFloat(b.min_investment));
+  return [...result, ...others];
+};
 
 export default function Dashboard() {
   const [user] = useState<any>(JSON.parse(localStorage.getItem('user') || '{}'));
@@ -760,11 +776,7 @@ export default function Dashboard() {
                 </div>
                 
                 <div className="vault-packages-row">
-                  {[...packages].sort((a, b) => {
-                    if (a.type === 'gold' && b.type !== 'gold') return -1;
-                    if (a.type !== 'gold' && b.type === 'gold') return 1;
-                    return 0;
-                  }).slice(0, 3).map(pkg => (
+                  {getInterleavedPackages([...packages]).slice(0, 3).map(pkg => (
                     <div key={pkg.id} className="vault-package-item">
                       <div className="vault-package-header-row">
                         <span className="vault-package-tag">{pkg.type}</span>
@@ -795,11 +807,7 @@ export default function Dashboard() {
             <div className="vault-db-grid">
                <div id="tour-packages-grid" className="vault-card vault-card-packages">
                 <div className="vault-packages-row">
-                  {[...packages].sort((a, b) => {
-                    if (a.type === 'gold' && b.type !== 'gold') return -1;
-                    if (a.type !== 'gold' && b.type === 'gold') return 1;
-                    return 0;
-                  }).map(pkg => (
+                  {getInterleavedPackages([...packages]).map(pkg => (
                     <div key={pkg.id} className="vault-package-item">
                       <div className="vault-package-header-row">
                         <span className="vault-package-tag">{pkg.type}</span>
