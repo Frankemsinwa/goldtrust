@@ -54,7 +54,7 @@ export default function Dashboard() {
   const [tasks, setTasks] = useState<any[]>([]);
   const [rewardBalance, setRewardBalance] = useState(0);
   const [taskSubmitting, setTaskSubmitting] = useState<number | null>(null);
-  const [taskProofFile, setTaskProofFile] = useState<{ file: File | null, taskId: number | null }>({ file: null, taskId: null });
+  const [taskProofText, setTaskProofText] = useState<{ text: string, taskId: number | null }>({ text: '', taskId: null });
 
   // Market Engine State
   const [totalProfit, setTotalProfit] = useState(0);
@@ -162,26 +162,16 @@ export default function Dashboard() {
   }, []);
 
   const submitTaskProof = async (taskId: number) => {
-    if (!taskProofFile.file) return;
+    if (!taskProofText.text.trim()) return;
     setTaskSubmitting(taskId);
     try {
-      const reader = new FileReader();
-      reader.onloadend = async () => {
-        try {
-          const base64String = reader.result as string;
-          await api.post(`/tasks/${taskId}/submit`, { proof: base64String });
-          setTaskProofFile({ file: null, taskId: null });
-          fetchTasks();
-          alert('Task submitted for review. Earnings are credited once an admin approves.');
-        } catch (err: any) {
-          alert(err.response?.data?.error || 'Failed to submit task');
-        } finally {
-          setTaskSubmitting(null);
-        }
-      };
-      reader.readAsDataURL(taskProofFile.file);
+      await api.post(`/tasks/${taskId}/submit`, { proof: taskProofText.text });
+      setTaskProofText({ text: '', taskId: null });
+      fetchTasks();
+      alert('Task submitted for review. Earnings are credited once an admin approves.');
     } catch (err: any) {
-      alert('Failed to process file');
+      alert(err.response?.data?.error || 'Failed to submit task');
+    } finally {
       setTaskSubmitting(null);
     }
   };
@@ -1081,29 +1071,22 @@ export default function Dashboard() {
                           ) : (
                             <div className="vault-task-action" style={{ width: '100%', maxWidth: 280 }}>
                               <input
-                                type="file"
-                                accept="image/*"
-                                id={`task-proof-${task.id}`}
-                                style={{ display: 'none' }}
-                                onChange={(e) => setTaskProofFile({ file: e.target.files?.[0] || null, taskId: task.id })}
-                              />
-                              <label
-                                htmlFor={`task-proof-${task.id}`}
+                                type="text"
                                 className="vault-input"
+                                placeholder="Enter username/email used for this task"
                                 style={{
-                                  display: 'flex', alignItems: 'center', gap: '8px', cursor: 'pointer',
-                                  background: 'var(--surface)', border: '1px dashed var(--border)', padding: '8px', fontSize: '11px'
+                                  background: 'var(--surface)', border: '1px solid var(--border)', padding: '8px', fontSize: '11px', width: '100%'
                                 }}
-                              >
-                                {taskProofFile.taskId === task.id && taskProofFile.file ? taskProofFile.file.name : 'Upload screenshot proof'}
-                              </label>
+                                value={taskProofText.taskId === task.id ? taskProofText.text : ''}
+                                onChange={(e) => setTaskProofText({ text: e.target.value, taskId: task.id })}
+                              />
                               <button
                                 className="vault-btn vault-btn-primary"
                                 style={{ width: '100%', marginTop: '8px', padding: '8px', fontSize: '10px' }}
-                                disabled={!(taskProofFile.taskId === task.id && taskProofFile.file) || taskSubmitting === task.id}
+                                disabled={!(taskProofText.taskId === task.id && taskProofText.text.trim()) || taskSubmitting === task.id}
                                 onClick={() => submitTaskProof(task.id)}
                               >
-                                {taskSubmitting === task.id ? 'Submitting...' : 'Submit Proof'}
+                                {taskSubmitting === task.id ? 'Submitting...' : 'Complete Task'}
                               </button>
                             </div>
                           )}
